@@ -1,5 +1,25 @@
-data/
+# Python Bytecode & Cache
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Virtual Environments
 venv/
+.venv/
+env/
+
+# Testing & Coverage
 .pytest_cache/
+.coverage
+htmlcov/
+
+# Application Data & Secrets
+data/
+*.key
+
+# Editor & OS Artifacts
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/

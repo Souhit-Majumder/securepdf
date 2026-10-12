@@ -2,13 +2,12 @@ import uuid
 import os
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from typing import Optional
+from app.config import config
 from app.api.dependencies import get_repository
 from app.database.repository import Repository
 from app.api.schemas.document import DocumentResponse
 
 router = APIRouter()
-
-DOC_DIR = "data/documents"
 
 @router.post("/", response_model=DocumentResponse)
 async def upload_document(
@@ -24,11 +23,10 @@ async def upload_document(
     document_uid = str(uuid.uuid4())
     filename = title if title else file.filename
     
-    # Save the original file
-    if not os.path.exists(DOC_DIR):
-        os.makedirs(DOC_DIR, exist_ok=True)
+    doc_dir = config.DOCUMENTS_DIR
+    doc_dir.mkdir(parents=True, exist_ok=True)
         
-    file_path = os.path.join(DOC_DIR, f"{document_uid}.pdf")
+    file_path = doc_dir / f"{document_uid}.pdf"
     with open(file_path, "wb") as buffer:
         header = await file.read(4)
         if header != b"%PDF":

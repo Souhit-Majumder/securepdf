@@ -1,3 +1,5 @@
+from pathlib import Path
+from typing import Optional, Union
 from app.crypto.keys import get_or_create_master_key
 from app.crypto.fingerprint import generate_nonce, generate_fingerprint
 from app.database.repository import Repository
@@ -5,9 +7,14 @@ from app.pdf.processor import open_pdf, save_pdf
 from app.pdf.embed import embed_payload
 
 class FingerprintService:
-    def __init__(self):
-        self.repo = Repository()
-        self.master_key = get_or_create_master_key()
+    def __init__(
+        self,
+        repo: Optional[Repository] = None,
+        master_key: Optional[bytes] = None,
+        key_path: Optional[Union[str, Path]] = None
+    ):
+        self.repo = repo or Repository()
+        self.master_key = master_key or get_or_create_master_key(key_path)
 
     def fingerprint_pdf(self, student_uid: str, document_uid: str, input_pdf_path: str, output_pdf_path: str) -> str:
         """

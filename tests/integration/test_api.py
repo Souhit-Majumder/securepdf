@@ -9,12 +9,8 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def setup_db():
-    if os.path.exists("data/securepdf.db"):
-        os.remove("data/securepdf.db")
     init_db()
     yield
-    if os.path.exists("data/securepdf.db"):
-        os.remove("data/securepdf.db")
 
 @pytest.fixture
 def test_pdf_content(tmp_path):

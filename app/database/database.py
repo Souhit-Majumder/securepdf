@@ -1,18 +1,19 @@
 import sqlite3
-import os
+from pathlib import Path
+from typing import Optional, Union
+from app.config import config
 
-DB_DIR = "data"
-DB_PATH = os.path.join(DB_DIR, "securepdf.db")
-
-def get_connection():
-    if not os.path.exists(DB_DIR):
-        os.makedirs(DB_DIR, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+def get_connection(db_path: Optional[Union[str, Path]] = None) -> sqlite3.Connection:
+    path = Path(db_path) if db_path else config.DB_PATH
+    db_dir = path.parent
+    if not db_dir.exists():
+        db_dir.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(path))
     conn.row_factory = sqlite3.Row
     return conn
 
-def init_db():
-    conn = get_connection()
+def init_db(db_path: Optional[Union[str, Path]] = None):
+    conn = get_connection(db_path)
     cursor = conn.cursor()
     
     cursor.execute('''

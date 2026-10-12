@@ -10,14 +10,10 @@ from app.services.fingerprint_service import FingerprintService
 
 @pytest.fixture(autouse=True)
 def setup_database():
-    if os.path.exists("data/securepdf.db"):
-        os.remove("data/securepdf.db")
     init_db()
     repo = Repository()
     repo.create_student("STU-TEST", "Alice")
     yield
-    if os.path.exists("data/securepdf.db"):
-        os.remove("data/securepdf.db")
 
 @pytest.fixture
 def original_pdf(tmp_path):

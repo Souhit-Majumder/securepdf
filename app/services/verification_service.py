@@ -1,15 +1,21 @@
+from pathlib import Path
+from typing import Optional, Dict, Union
 from app.crypto.integrity import verify_fingerprint
 from app.database.repository import Repository
 from app.crypto.keys import get_or_create_master_key
 from app.pdf.processor import open_pdf
 from app.pdf.extract import extract_layer1, extract_layer2
 from app.pdf.payload_redundancy import decode_compact_payload
-from typing import Optional, Dict
 
 class VerificationService:
-    def __init__(self):
-        self.repo = Repository()
-        self.master_key = get_or_create_master_key()
+    def __init__(
+        self,
+        repo: Optional[Repository] = None,
+        master_key: Optional[bytes] = None,
+        key_path: Optional[Union[str, Path]] = None
+    ):
+        self.repo = repo or Repository()
+        self.master_key = master_key or get_or_create_master_key(key_path)
 
     def _authenticate_payload(self, document_uid: str, nonce: str, extracted_fingerprint: str) -> Optional[Dict]:
         """Attempts to authenticate a candidate payload. Returns attribution dict if VALID, else None."""

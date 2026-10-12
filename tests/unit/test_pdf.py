@@ -13,17 +13,11 @@ from app.services.fingerprint_service import FingerprintService
 
 @pytest.fixture(autouse=True)
 def setup_database():
-    # Setup test database
-    if os.path.exists("data/securepdf.db"):
-        os.remove("data/securepdf.db")
     init_db()
     repo = Repository()
     repo.create_student("STU-TEST", "Test Student")
     repo.create_student("STU-OTHER", "Other Student")
     yield
-    # Cleanup after test
-    if os.path.exists("data/securepdf.db"):
-        os.remove("data/securepdf.db")
 
 @pytest.fixture
 def original_pdf(tmp_path):
@@ -138,14 +132,17 @@ def test_modified_nonce(original_pdf, output_pdf):
     assert result["status"] == "INVALID"
 
 def test_wrong_student(original_pdf, output_pdf):
-    # We will simulate a wrong student scenario. 
-    # An attacker copies the valid fingerprint payload to another document, but changes the doc uid?
-    # Or an attacker somehow maps the fingerprint to another student in DB (which shouldn't happen without key).
-    # Since we can't easily tamper with the DB in a real attack, we will tamper with the payload to use STU-OTHER.
-    # Wait, the payload doesn't contain student_uid. The mapping is in DB.
-    # What if the attacker copies the entire payload from Student A's PDF to Student B's PDF?
-    # Verification will correctly say "This belongs to Student A".
-    pass
+    # Verify that a document fingerprinted for STU-TEST attributes strictly to STU-TEST, never to STU-OTHER
+    fp_service = FingerprintService()
+    fp_service.fingerprint_pdf("STU-TEST", "DOC-TEST", original_pdf, output_pdf)
+
+    ver_service = VerificationService()
+    result = ver_service.investigate_pdf(output_pdf)
+
+    assert result["status"] == "VALID"
+    assert result["student_uid"] == "STU-TEST"
+    assert result["student_uid"] != "STU-OTHER"
+    assert result["student_name"] == "Test Student"
 
 def test_unprotected_pdf(original_pdf):
     ver_service = VerificationService()

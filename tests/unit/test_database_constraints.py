@@ -6,15 +6,11 @@ from app.database.repository import Repository
 
 @pytest.fixture(autouse=True)
 def setup_database():
-    if os.path.exists("data/securepdf.db"):
-        os.remove("data/securepdf.db")
     init_db()
     repo = Repository()
     repo.create_student("STU-TEST", "Alice")
     repo.get_or_create_document("DOC-TEST", "original.pdf")
     yield
-    if os.path.exists("data/securepdf.db"):
-        os.remove("data/securepdf.db")
 
 def test_fingerprint_unique_document_nonce():
     repo = Repository()

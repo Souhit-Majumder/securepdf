@@ -1,13 +1,12 @@
 import os
 import uuid
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from app.config import config
 from app.api.dependencies import get_verification_service
 from app.services.verification_service import VerificationService
 from app.api.schemas.verification import VerificationResponse
 
 router = APIRouter()
-
-TEMP_DIR = "data/temp"
 
 @router.post("/", response_model=VerificationResponse)
 async def verify_document(
@@ -17,10 +16,10 @@ async def verify_document(
     if file.content_type != "application/pdf" and not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
         
-    if not os.path.exists(TEMP_DIR):
-        os.makedirs(TEMP_DIR, exist_ok=True)
+    temp_dir = config.TEMP_DIR
+    temp_dir.mkdir(parents=True, exist_ok=True)
         
-    temp_path = os.path.join(TEMP_DIR, f"verify_{uuid.uuid4()}.pdf")
+    temp_path = str(temp_dir / f"verify_{uuid.uuid4()}.pdf")
     
     try:
         header = await file.read(4)

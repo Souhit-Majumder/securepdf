@@ -1,11 +1,18 @@
 import sqlite3
-from typing import Optional, List
+from pathlib import Path
+from typing import Optional, List, Union
 from .database import get_connection
 from .models import Student, Document, Fingerprint
 
 class Repository:
+    def __init__(self, db_path: Optional[Union[str, Path]] = None):
+        self.db_path = db_path
+
+    def _get_conn(self) -> sqlite3.Connection:
+        return get_connection(self.db_path)
+
     def create_student(self, student_uid: str, name: str) -> Student:
-        conn = get_connection()
+        conn = self._get_conn()
         cursor = conn.cursor()
         try:
             cursor.execute(
@@ -25,7 +32,7 @@ class Repository:
         return Student(**dict(row))
 
     def get_student_by_uid(self, student_uid: str) -> Optional[Student]:
-        conn = get_connection()
+        conn = self._get_conn()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM students WHERE student_uid = ?", (student_uid,))
         row = cursor.fetchone()
@@ -35,7 +42,7 @@ class Repository:
         return None
 
     def get_student_by_id(self, student_id: int) -> Optional[Student]:
-        conn = get_connection()
+        conn = self._get_conn()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM students WHERE id = ?", (student_id,))
         row = cursor.fetchone()
@@ -45,7 +52,7 @@ class Repository:
         return None
 
     def get_or_create_document(self, document_uid: str, original_filename: str) -> Document:
-        conn = get_connection()
+        conn = self._get_conn()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM documents WHERE document_uid = ?", (document_uid,))
         row = cursor.fetchone()
@@ -67,7 +74,7 @@ class Repository:
         return Document(**dict(row))
 
     def get_document_by_uid(self, document_uid: str) -> Optional[Document]:
-        conn = get_connection()
+        conn = self._get_conn()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM documents WHERE document_uid = ?", (document_uid,))
         row = cursor.fetchone()
@@ -77,7 +84,7 @@ class Repository:
         return None
 
     def get_document_by_id(self, document_id: int) -> Optional[Document]:
-        conn = get_connection()
+        conn = self._get_conn()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM documents WHERE id = ?", (document_id,))
         row = cursor.fetchone()
@@ -87,7 +94,7 @@ class Repository:
         return None
 
     def create_fingerprint(self, document_id: int, student_id: int, nonce: str, fingerprint: str) -> Fingerprint:
-        conn = get_connection()
+        conn = self._get_conn()
         cursor = conn.cursor()
         try:
             cursor.execute(
@@ -111,7 +118,7 @@ class Repository:
         return Fingerprint(**dict(row))
 
     def get_fingerprint(self, fingerprint: str) -> Optional[Fingerprint]:
-        conn = get_connection()
+        conn = self._get_conn()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM fingerprints WHERE fingerprint = ?", (fingerprint,))
         row = cursor.fetchone()
@@ -121,7 +128,7 @@ class Repository:
         return None
 
     def get_fingerprint_by_doc_and_nonce(self, document_id: int, nonce: str) -> Optional[Fingerprint]:
-        conn = get_connection()
+        conn = self._get_conn()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM fingerprints WHERE document_id = ? AND nonce = ?", (document_id, nonce))
         row = cursor.fetchone()
