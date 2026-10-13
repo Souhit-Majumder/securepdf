@@ -33,11 +33,30 @@ class Config:
     def TEMP_DIR(self) -> Path:
         return Path(os.getenv("SECUREPDF_TEMP_DIR", str(self.DATA_DIR / "temp")))
 
+    @property
+    def ML_DIR(self) -> Path:
+        return Path(os.getenv("SECUREPDF_ML_DIR", str(self.DATA_DIR / "ml")))
+
+    @property
+    def MODEL_PATH(self) -> Path:
+        return Path(os.getenv("SECUREPDF_MODEL_PATH", str(self.ML_DIR / "forensic_model.joblib")))
+
+    @property
+    def DATASET_DIR(self) -> Path:
+        return Path(os.getenv("SECUREPDF_DATASET_DIR", str(self.ML_DIR / "dataset")))
+
     def ensure_directories(self):
         """Ensures that all runtime directories exist on disk."""
         self.DATA_DIR.mkdir(parents=True, exist_ok=True)
         self.DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
         self.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         self.TEMP_DIR.mkdir(parents=True, exist_ok=True)
+        self.ML_DIR.mkdir(parents=True, exist_ok=True)
+        self.DATASET_DIR.mkdir(parents=True, exist_ok=True)
 
 config = Config()
+
+def __getattr__(name: str):
+    if hasattr(config, name):
+        return getattr(config, name)
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

@@ -23,3 +23,5 @@ data/
 *.swo
 .vscode/
 .idea/
+
+securepdf-dataset/

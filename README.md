@@ -118,10 +118,22 @@ python -m app.cli distribute "DOC-001" "STU-001" --output "output/Alice_copy.pdf
 # 4. Investigate a leaked or suspected document
 python -m app.cli verify "output/Alice_copy.pdf"
 
-# 5. Run an automated 3-student demo workflow
+# 5. Perform comprehensive forensic analysis (Cryptographic + Advisory ML)
+python -m app.cli analyze "output/Alice_copy.pdf"
+
+# 6. Generate forensic training dataset with source-grouped splits
+python -m app.cli ml dataset --generate-synthetic-sources 10
+
+# 7. Train Random Forest forensic classifier
+python -m app.cli ml train
+
+# 8. Evaluate model against manifest with baseline comparison
+python -m app.cli ml evaluate
+
+# 9. Run an automated 3-student demo workflow
 python -m app.cli demo
 
-# 6. Launch interactive menu
+# 10. Launch interactive menu
 python -m app.cli
 ```
 
@@ -156,6 +168,9 @@ Path configuration is centralized in [`app/config.py`](file:///home/souhit/Docum
 | **Original Documents** | `data/documents/` | `SECUREPDF_DOCUMENTS_DIR` |
 | **Generated Copies** | `data/output/` | `SECUREPDF_OUTPUT_DIR` |
 | **Temporary Uploads** | `data/temp/` | `SECUREPDF_TEMP_DIR` |
+| **ML Artifacts** | `data/ml/` | `SECUREPDF_ML_DIR` |
+| **ML Model Path** | `data/ml/forensic_model.joblib` | `SECUREPDF_MODEL_PATH` |
+| **ML Dataset** | `data/ml/dataset/` | `SECUREPDF_DATASET_DIR` |
 
 ---
 
@@ -175,22 +190,36 @@ pytest tests/unit/
 pytest tests/integration/
 pytest tests/security/
 pytest tests/cli/
+pytest tests/ml/
 ```
+
+---
+
+## Documentation
+
+- [ML Forensic Analysis Guide](docs/ml-forensic-analysis.md)
+- [Architecture Specification](docs/architecture.md)
+- [Security Model](docs/security-model.md)
+- [Attack Model & Adversarial Testing](docs/attack-model.md)
+- [Content Embedding & Carriers](docs/content-embedding.md)
+- [API Security Review](docs/api-security-review.md)
 
 ---
 
 ## Project Status & Roadmap
 
 ### Current Features (Implemented)
-- Core cryptographic fingerprinting and constant-time HMAC verification.
+- Core cryptographic fingerprinting and constant-time HMAC verification (`SPDF-V1|{doc_uid}|{student_uid}|{nonce}`).
 - Dual-layer PDF carrier embedding and extraction (Catalog + Annotations).
 - Redundant annotation survival against page reordering, extraction, and tampering.
 - SQLite parameterized database layer with unique constraints.
-- Fully isolated test suite with 55 passing automated tests.
-- Standalone CLI with modular subcommands and interactive console.
+- Advisory ML PDF forensic analysis subsystem with 23-feature passive extractor, source-grouped train/test isolation, and Random Forest classifier.
+- Fully isolated test suite with 75 passing automated tests.
+- Standalone CLI with modular subcommands, comprehensive `analyze` reporting, and interactive console.
 - FastAPI REST API with payload size streaming limits and input sanitization.
 
 ### Planned Features (Future Milestones)
 - **GUI Application**: Decoupled desktop/web interface communicating with FastAPI.
 - **Authentication & RBAC**: JWT/Session authentication for Teacher vs. Student roles.
 - **Key Rotation**: Cryptographic key lifecycle management and versioned verification.
+

@@ -1,0 +1,24 @@
+{
+  "students": [
+    {
+      "student_id": "STU001",
+      "name": "Alice Johnson",
+      "email": "alice.johnson@university.edu"
+    },
+    {
+      "student_id": "STU002",
+      "name": "Bob Smith",
+      "email": "bob.smith@university.edu"
+    },
+    {
+      "student_id": "STU003",
+      "name": "Charlie Davis",
+      "email": "charlie.davis@university.edu"
+    },
+    {
+      "student_id": "STU004",
+      "name": "Diana Prince",
+      "email": "diana.prince@university.edu"
+    }
+  ]
+}
