@@ -1,0 +1,461 @@
+{
+  "timestamp": "2026-10-13 04:00:47 UTC",
+  "source_document": "experimental/pdfs/sample_lecture.pdf",
+  "source_sha256": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
+  "document_uid": "DOC-BENCH-01",
+  "recipient_uid": "STU-EXP-ALICE",
+  "total_scenarios": 8,
+  "results": [
+    {
+      "scenario_name": "00_unwatermarked_baseline",
+      "description": "Plain PDF without watermark; tests false-positive detector rate",
+      "is_baseline_unwatermarked": true,
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "payload_decoded": false,
+      "crc_valid": false,
+      "hmac_verified": false,
+      "recipient_recovered": false,
+      "recovered_recipient_uid": null,
+      "bit_error_rate": null,
+      "embedding_psnr_db": 999.0,
+      "embedding_mse": 0.0,
+      "embedding_changed_ratio": 0.0,
+      "transformation_psnr_db": 999.0,
+      "transformation_mse": 0.0,
+      "transformation_changed_ratio": 0.0,
+      "total_psnr_db": 999.0,
+      "total_mse": 0.0,
+      "total_changed_ratio": 0.0,
+      "control_psnr_db": 999.0,
+      "control_mse": 0.0,
+      "control_changed_ratio": 0.0,
+      "page_dims_orig_pt": [
+        595.0,
+        842.0
+      ],
+      "page_dims_comp_pt": [
+        595.0,
+        842.0
+      ],
+      "image_shape_orig_px": [
+        1755,
+        1240,
+        3
+      ],
+      "image_shape_comp_px": [
+        1755,
+        1240,
+        3
+      ],
+      "dimensions_match": true,
+      "pixel_threshold": 1.0,
+      "geometric_status": "NO_WATERMARK",
+      "geometric_payload_decoded": false,
+      "geometric_hmac_verified": false,
+      "file_hashes": {
+        "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24"
+      },
+      "expected_outcome": "NO_WATERMARK (Zero False Positives)",
+      "carrier_failure_mode": null,
+      "notes": "Verified extractor does not hallucinate watermarks on un-watermarked documents."
+    },
+    {
+      "scenario_name": "01_untouched_watermark",
+      "description": "Pristine watermarked copy without any transformation",
+      "is_baseline_unwatermarked": false,
+      "status": "AUTHENTICATED",
+      "frame_detected": true,
+      "payload_decoded": true,
+      "crc_valid": true,
+      "hmac_verified": true,
+      "recipient_recovered": true,
+      "recovered_recipient_uid": "STU-EXP-ALICE",
+      "bit_error_rate": 0.0,
+      "embedding_psnr_db": 18.03,
+      "embedding_mse": 1023.9014,
+      "embedding_changed_ratio": 0.049427,
+      "transformation_psnr_db": 999.0,
+      "transformation_mse": 0.0,
+      "transformation_changed_ratio": 0.0,
+      "total_psnr_db": 18.03,
+      "total_mse": 1023.9014,
+      "total_changed_ratio": 0.049427,
+      "control_psnr_db": null,
+      "control_mse": null,
+      "control_changed_ratio": null,
+      "page_dims_orig_pt": [
+        595.0,
+        842.0
+      ],
+      "page_dims_comp_pt": [
+        595.0,
+        842.0
+      ],
+      "image_shape_orig_px": [
+        1755,
+        1240,
+        3
+      ],
+      "image_shape_comp_px": [
+        1755,
+        1240,
+        3
+      ],
+      "dimensions_match": true,
+      "pixel_threshold": 1.0,
+      "geometric_status": "AUTHENTICATED",
+      "geometric_payload_decoded": true,
+      "geometric_hmac_verified": true,
+      "file_hashes": {
+        "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
+        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375"
+      },
+      "expected_outcome": "AUTHENTICATED (100% Recovery)",
+      "carrier_failure_mode": null,
+      "notes": "Full payload and HMAC-SHA256 successfully recovered from text content stream."
+    },
+    {
+      "scenario_name": "02_benign_resave",
+      "description": "PyMuPDF re-save with stream deflation and unused object pruning",
+      "is_baseline_unwatermarked": false,
+      "status": "AUTHENTICATED",
+      "frame_detected": true,
+      "payload_decoded": true,
+      "crc_valid": true,
+      "hmac_verified": true,
+      "recipient_recovered": true,
+      "recovered_recipient_uid": "STU-EXP-ALICE",
+      "bit_error_rate": 0.0,
+      "embedding_psnr_db": 18.03,
+      "embedding_mse": 1023.9014,
+      "embedding_changed_ratio": 0.049427,
+      "transformation_psnr_db": 999.0,
+      "transformation_mse": 0.0,
+      "transformation_changed_ratio": 0.0,
+      "total_psnr_db": 18.03,
+      "total_mse": 1023.9014,
+      "total_changed_ratio": 0.049427,
+      "control_psnr_db": 999.0,
+      "control_mse": 0.0,
+      "control_changed_ratio": 0.0,
+      "page_dims_orig_pt": [
+        595.0,
+        842.0
+      ],
+      "page_dims_comp_pt": [
+        595.0,
+        842.0
+      ],
+      "image_shape_orig_px": [
+        1755,
+        1240,
+        3
+      ],
+      "image_shape_comp_px": [
+        1755,
+        1240,
+        3
+      ],
+      "dimensions_match": true,
+      "pixel_threshold": 1.0,
+      "geometric_status": "AUTHENTICATED",
+      "geometric_payload_decoded": true,
+      "geometric_hmac_verified": true,
+      "file_hashes": {
+        "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
+        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375",
+        "resaved_pdf": "e9e225ab9a8f9bb14b1ea42e7930a7d4327784ea2495228988d3e885adb9d768",
+        "resaved_control_pdf": "16c26cce04b0ec31604574acf750a150e39cf9433785d03989279422d596f805"
+      },
+      "expected_outcome": "AUTHENTICATED (Stream Kerning Preserved)",
+      "carrier_failure_mode": null,
+      "notes": "PDF parser retains TJ kerning arrays across standard save-and-compress operations."
+    },
+    {
+      "scenario_name": "03_metadata_modified",
+      "description": "Document catalog metadata (title, author) altered",
+      "is_baseline_unwatermarked": false,
+      "status": "AUTHENTICATED",
+      "frame_detected": true,
+      "payload_decoded": true,
+      "crc_valid": true,
+      "hmac_verified": true,
+      "recipient_recovered": true,
+      "recovered_recipient_uid": "STU-EXP-ALICE",
+      "bit_error_rate": 0.0,
+      "embedding_psnr_db": 18.03,
+      "embedding_mse": 1023.9014,
+      "embedding_changed_ratio": 0.049427,
+      "transformation_psnr_db": 999.0,
+      "transformation_mse": 0.0,
+      "transformation_changed_ratio": 0.0,
+      "total_psnr_db": 18.03,
+      "total_mse": 1023.9014,
+      "total_changed_ratio": 0.049427,
+      "control_psnr_db": 999.0,
+      "control_mse": 0.0,
+      "control_changed_ratio": 0.0,
+      "page_dims_orig_pt": [
+        595.0,
+        842.0
+      ],
+      "page_dims_comp_pt": [
+        595.0,
+        842.0
+      ],
+      "image_shape_orig_px": [
+        1755,
+        1240,
+        3
+      ],
+      "image_shape_comp_px": [
+        1755,
+        1240,
+        3
+      ],
+      "dimensions_match": true,
+      "pixel_threshold": 1.0,
+      "geometric_status": "AUTHENTICATED",
+      "geometric_payload_decoded": true,
+      "geometric_hmac_verified": true,
+      "file_hashes": {
+        "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
+        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375",
+        "metadata_pdf": "c19bf2095f2610b6d4220a9ecc78b9a8ebe5d236a53bed46847baa4706d856f7",
+        "metadata_control_pdf": "184d47786470b98e2fae3a6b68706368fb18869c7b79b8b9b850db7d84622c85"
+      },
+      "expected_outcome": "AUTHENTICATED (Metadata Decoupled)",
+      "carrier_failure_mode": null,
+      "notes": "Watermark resides strictly in page content streams, fully decoupled from catalog metadata."
+    },
+    {
+      "scenario_name": "04_text_modified_appended",
+      "description": "Appended extraneous text block to page without altering watermarked lines",
+      "is_baseline_unwatermarked": false,
+      "status": "AUTHENTICATED",
+      "frame_detected": true,
+      "payload_decoded": true,
+      "crc_valid": true,
+      "hmac_verified": true,
+      "recipient_recovered": true,
+      "recovered_recipient_uid": "STU-EXP-ALICE",
+      "bit_error_rate": 0.0,
+      "embedding_psnr_db": 18.03,
+      "embedding_mse": 1023.9014,
+      "embedding_changed_ratio": 0.049427,
+      "transformation_psnr_db": 34.21,
+      "transformation_mse": 24.6657,
+      "transformation_changed_ratio": 0.001018,
+      "total_psnr_db": 17.92,
+      "total_mse": 1048.5671,
+      "total_changed_ratio": 0.050444,
+      "control_psnr_db": 34.21,
+      "control_mse": 24.6657,
+      "control_changed_ratio": 0.001018,
+      "page_dims_orig_pt": [
+        595.0,
+        842.0
+      ],
+      "page_dims_comp_pt": [
+        595.0,
+        842.0
+      ],
+      "image_shape_orig_px": [
+        1755,
+        1240,
+        3
+      ],
+      "image_shape_comp_px": [
+        1755,
+        1240,
+        3
+      ],
+      "dimensions_match": true,
+      "pixel_threshold": 1.0,
+      "geometric_status": "AUTHENTICATED",
+      "geometric_payload_decoded": true,
+      "geometric_hmac_verified": true,
+      "file_hashes": {
+        "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
+        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375",
+        "appended_text_pdf": "913411eff5a77ed29dcfcfc7aa18b455779155b5ff776ea80844db988bd5bbd2",
+        "appended_control_pdf": "55c8e57f906e88c8129ebce9c8d235e3b1ff61788dc613caff8072327e0e309e"
+      },
+      "expected_outcome": "AUTHENTICATED (Sync Marker Re-locks)",
+      "carrier_failure_mode": null,
+      "notes": "Preamble sync search successfully locates watermark frame despite extraneous text additions."
+    },
+    {
+      "scenario_name": "05_page_reordered",
+      "description": "Reversed page order of multi-page watermarked PDF",
+      "is_baseline_unwatermarked": false,
+      "status": "CRC_ERROR",
+      "frame_detected": true,
+      "payload_decoded": false,
+      "crc_valid": false,
+      "hmac_verified": false,
+      "recipient_recovered": false,
+      "recovered_recipient_uid": null,
+      "bit_error_rate": 0.7262,
+      "embedding_psnr_db": 18.03,
+      "embedding_mse": 1023.9014,
+      "embedding_changed_ratio": 0.049427,
+      "transformation_psnr_db": 14.85,
+      "transformation_mse": 2126.9396,
+      "transformation_changed_ratio": 0.071385,
+      "total_psnr_db": 14.83,
+      "total_mse": 2136.1204,
+      "total_changed_ratio": 0.071555,
+      "control_psnr_db": 14.86,
+      "control_mse": 2125.518,
+      "control_changed_ratio": 0.071353,
+      "page_dims_orig_pt": [
+        595.0,
+        842.0
+      ],
+      "page_dims_comp_pt": [
+        595.0,
+        842.0
+      ],
+      "image_shape_orig_px": [
+        1755,
+        1240,
+        3
+      ],
+      "image_shape_comp_px": [
+        1755,
+        1240,
+        3
+      ],
+      "dimensions_match": true,
+      "pixel_threshold": 1.0,
+      "geometric_status": "CRC_ERROR",
+      "geometric_payload_decoded": false,
+      "geometric_hmac_verified": false,
+      "file_hashes": {
+        "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
+        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375",
+        "reordered_pdf": "14b75fa31ada075945e87cb3bd72e9ed9141a755d4b34997f185801a0ff5ddf3",
+        "reordered_control_pdf": "3260c4eaad89bac8f73cf2319d3834025847efcb79f8e4df047643b074d50a7f"
+      },
+      "expected_outcome": "NO_WATERMARK or CRC_ERROR (Stream Fragment Disordered)",
+      "carrier_failure_mode": "Page-order permutation disrupts multi-page payload sequence",
+      "notes": "Expected limitation: Inter-page bit stream requires sequential reading order."
+    },
+    {
+      "scenario_name": "06_margin_cropped",
+      "description": "Cropped 10pt margins on all pages",
+      "is_baseline_unwatermarked": false,
+      "status": "AUTHENTICATED",
+      "frame_detected": true,
+      "payload_decoded": true,
+      "crc_valid": true,
+      "hmac_verified": true,
+      "recipient_recovered": true,
+      "recovered_recipient_uid": "STU-EXP-ALICE",
+      "bit_error_rate": 0.0,
+      "embedding_psnr_db": 18.03,
+      "embedding_mse": 1023.9014,
+      "embedding_changed_ratio": 0.049427,
+      "transformation_psnr_db": 12.64,
+      "transformation_mse": 3543.8658,
+      "transformation_changed_ratio": 0.108289,
+      "total_psnr_db": 12.64,
+      "total_mse": 3541.2601,
+      "total_changed_ratio": 0.108329,
+      "control_psnr_db": 12.64,
+      "control_mse": 3540.3083,
+      "control_changed_ratio": 0.108306,
+      "page_dims_orig_pt": [
+        595.0,
+        842.0
+      ],
+      "page_dims_comp_pt": [
+        575.0,
+        822.0
+      ],
+      "image_shape_orig_px": [
+        1755,
+        1240,
+        3
+      ],
+      "image_shape_comp_px": [
+        1713,
+        1198,
+        3
+      ],
+      "dimensions_match": false,
+      "pixel_threshold": 1.0,
+      "geometric_status": "AUTHENTICATED",
+      "geometric_payload_decoded": true,
+      "geometric_hmac_verified": true,
+      "file_hashes": {
+        "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
+        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375",
+        "cropped_pdf": "804be964eab7186c4a41ad8ca644feb363ae2710acd481425c5a93f198f40e34",
+        "cropped_control_pdf": "f48028e064ec16b0027aedf4bd625b1dd9e5418dbaa756f55d6a6df07a2cd069"
+      },
+      "expected_outcome": "AUTHENTICATED (Content Streams Unaltered)",
+      "carrier_failure_mode": null,
+      "notes": "Content stream TJ kerning remains intact despite view cropbox modifications."
+    },
+    {
+      "scenario_name": "07_rasterization_scan_sim",
+      "description": "Rasterized pages to bitmaps and rebuilt PDF (print-scan simulation)",
+      "is_baseline_unwatermarked": false,
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "payload_decoded": false,
+      "crc_valid": false,
+      "hmac_verified": false,
+      "recipient_recovered": false,
+      "recovered_recipient_uid": null,
+      "bit_error_rate": null,
+      "embedding_psnr_db": 18.03,
+      "embedding_mse": 1023.9014,
+      "embedding_changed_ratio": 0.049427,
+      "transformation_psnr_db": 999.0,
+      "transformation_mse": 0.0,
+      "transformation_changed_ratio": 0.0,
+      "total_psnr_db": 18.03,
+      "total_mse": 1023.9014,
+      "total_changed_ratio": 0.049427,
+      "control_psnr_db": 999.0,
+      "control_mse": 0.0,
+      "control_changed_ratio": 0.0,
+      "page_dims_orig_pt": [
+        595.0,
+        842.0
+      ],
+      "page_dims_comp_pt": [
+        595.0,
+        842.0
+      ],
+      "image_shape_orig_px": [
+        1755,
+        1240,
+        3
+      ],
+      "image_shape_comp_px": [
+        1755,
+        1240,
+        3
+      ],
+      "dimensions_match": true,
+      "pixel_threshold": 1.0,
+      "geometric_status": "NO_WATERMARK",
+      "geometric_payload_decoded": false,
+      "geometric_hmac_verified": false,
+      "file_hashes": {
+        "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
+        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375",
+        "rasterized_pdf": "3b4352253dbaed4e03001c672169b0f8791ba97229926eb0af7a3a59496e82d3",
+        "rasterized_control_pdf": "3016774e1b4662f4d7649cdf590f5849ccfc7f4917f7f10b06dbe20b6c86f57b"
+      },
+      "expected_outcome": "NO_WATERMARK (Carrier Inherent Limit)",
+      "carrier_failure_mode": "Text vector carrier completely destroyed by rasterization",
+      "notes": "Fundamental physical limitation: Text-kerning watermarks require vector text operators. Converting to image pixels eliminates the carrier completely."
+    }
+  ]
+}
