@@ -4,13 +4,13 @@ def open_pdf(path: str) -> fitz.Document:
     """Opens a PDF document from the given path."""
     return fitz.open(path)
 
-def save_pdf(doc: fitz.Document, path: str):
+def save_pdf(doc: fitz.Document, path: str, **kwargs):
     """
     Saves the PDF document.
     We use garbage=3 to clean up unused objects and deflate=True to compress,
     which helps obscure structural modifications slightly.
     """
-    doc.save(path, garbage=3, deflate=True)
+    doc.save(path, garbage=3, deflate=True, **kwargs)
 
 def validate_pdf(path: str) -> bool:
     """Checks if a file is a valid PDF."""

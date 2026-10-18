@@ -35,6 +35,9 @@ def _parse_and_embed_page_stream(
     bits_to_embed: str,
     bit_offset: int,
     shift: int = KERNING_SHIFT_BIT_1,
+    collector: Optional[Any] = None,
+    page_index: int = 0,
+    stream_xref: int = 0,
 ) -> Tuple[bytes, int]:
     """
     Parses a PDF content stream, locates TJ arrays, and inserts kerning displacement for bits.
@@ -128,12 +131,26 @@ def _parse_and_embed_page_stream(
                             if part:
                                 out.extend(b"(" + part + b")")
                             if p_idx < len(parts) - 1:
+                                if collector is not None:
+                                    collector.record_word_gap(page_index=page_index)
                                 if bit_idx < total_bits:
                                     bit_val = bits_to_embed[bit_idx]
                                     bit_idx += 1
                                     k = shift if bit_val == "1" else 0
                                 else:
+                                    bit_val = "0"
                                     k = 0
+                                if collector is not None:
+                                    collector.record_modulation(
+                                        page_index=page_index,
+                                        content_stream_xref=stream_xref,
+                                        gap_index=bit_idx - 1,
+                                        content_stream_offset=len(out),
+                                        preceding_word=part.decode("latin-1", errors="replace"),
+                                        displacement=k,
+                                        bit_value=bit_val,
+                                        source="RUNTIME_CAPTURE",
+                                    )
                                 out.extend(f" {k} ( ) ".encode("ascii"))
                     else:
                         out.extend(raw_str)
@@ -178,6 +195,7 @@ def embed_layer3(
     recipient_uid: str,
     nonce: bytes,
     master_key: bytes,
+    collector: Optional[Any] = None,
 ) -> bool:
     """
     Constructs authenticated Layer 3 payload and embeds it into PDF TJ operators.
@@ -192,6 +210,11 @@ def embed_layer3(
             available_bits,
             required_bits,
         )
+        if collector is not None:
+            collector.record_layer3_result(
+                status="NOT_FOUND",
+                details={"error": "insufficient_capacity", "required_bits": required_bits, "available_bits": available_bits},
+            )
         return False
 
     subkey = derive_layer3_subkey(master_key)
@@ -219,7 +242,12 @@ def embed_layer3(
             primary_xref = c_xrefs[0]
             stream = doc.xref_stream(primary_xref)
             new_stream, new_offset = _parse_and_embed_page_stream(
-                stream, bits_to_embed, bit_offset
+                stream,
+                bits_to_embed,
+                bit_offset,
+                collector=collector,
+                page_index=page.number,
+                stream_xref=primary_xref,
             )
 
             if new_offset > bit_offset:
@@ -227,6 +255,16 @@ def embed_layer3(
                 bit_offset = new_offset
         except Exception as e:
             logger.warning("Failed embedding Layer 3 into page content stream: %s", e)
+            if collector is not None:
+                collector.record_layer3_result(status="ERROR", details={"error": str(e)})
             return False
 
-    return bit_offset >= len(bits_to_embed)
+    success = bit_offset >= len(bits_to_embed)
+    if collector is not None:
+        collector.record_layer3_result(
+            status="VALID" if success else "NOT_FOUND",
+            signature_token=hmac_tag,
+            nonce_token=nonce,
+            details={"document_uid": document_uid, "recipient_uid": recipient_uid},
+        )
+    return success

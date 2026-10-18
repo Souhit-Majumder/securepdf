@@ -1,6 +1,6 @@
 from pathlib import Path
 import threading
-from typing import Optional, Dict, Union
+from typing import Optional, Dict, Union, Any
 from app.config import config
 from app.crypto.integrity import verify_fingerprint
 from app.database.repository import Repository
@@ -52,7 +52,12 @@ class VerificationService:
             }
         return None
 
-    def investigate_pdf(self, pdf_path: str, cancel_event: Optional[threading.Event] = None) -> dict:
+    def investigate_pdf(
+        self,
+        pdf_path: str,
+        cancel_event: Optional[threading.Event] = None,
+        collector: Optional[Any] = None,
+    ) -> dict:
         """
         Full verification pipeline for a leaked PDF checking all active carriers independently.
         """
@@ -62,6 +67,8 @@ class VerificationService:
             l2_payloads = extract_layer2(doc)
             doc.close()
         except Exception as e:
+            if collector is not None:
+                collector.record_layer1_embedding(catalog_xref=0, status="ERROR", details={"error": str(e)})
             return {"status": "ERROR", "reason": str(e)}
             
         # Authenticate Layer 1
@@ -135,6 +142,69 @@ class VerificationService:
         l1_valid = l1_result is not None
         l2_valid = len(l2_valid_results) > 0 and not l2_conflict
         l3_valid = l3_result is not None
+
+        # Record into evidence collector if provided
+        if collector is not None:
+            # Layer 1
+            if l1_payload:
+                parts = l1_payload.split('|')
+                if len(parts) == 4 and parts[0] == "SPDF-V1":
+                    collector.record_layer1_embedding(
+                        catalog_xref=0,
+                        signature_token=parts[3],
+                        nonce_token=parts[2],
+                        status="VALID" if l1_valid else "INVALID",
+                        details={"document_uid": parts[1]},
+                    )
+                else:
+                    collector.record_layer1_embedding(catalog_xref=0, status="INVALID")
+            else:
+                collector.record_layer1_embedding(catalog_xref=0, status="NOT_FOUND")
+
+            # Layer 2
+            if l2_payloads:
+                for p_idx, payload in enumerate(l2_payloads):
+                    try:
+                        ver, d_uid, nonce_str, fp_str = decode_compact_payload(payload)
+                        collector.record_layer2_annotation(
+                            page_index=0,
+                            annotation_xref=0,
+                            rect=[0.0, 0.0, 0.1, 0.1],
+                            title=f"SPDF{p_idx}",
+                            signature_token=fp_str,
+                            nonce_token=nonce_str,
+                            status="SECURITY_CONFLICT" if l2_conflict else ("VALID" if l2_valid else "INVALID"),
+                            details={"document_uid": d_uid, "version": ver},
+                        )
+                    except Exception:
+                        pass
+            else:
+                collector._l2_status = "NOT_FOUND"
+
+            # Layer 3
+            if stego_enabled:
+                if l3_valid and l3_result:
+                    collector.record_layer3_result(
+                        status="VALID",
+                        signature_token=l3_result["fingerprint"],
+                        nonce_token=l3_result["nonce"],
+                        details={"document_uid": l3_result["document_uid"], "recipient_uid": l3_result["student_uid"]},
+                    )
+                elif has_l3:
+                    p = l3_extract_res.get("payload") if l3_extract_res else None
+                    sig_tok = p["hmac_tag"].hex() if (p and "hmac_tag" in p) else None
+                    nonce_tok = p["nonce"].hex() if (p and "nonce" in p) else None
+                    status_l3 = "STRUCTURALLY_DECODED" if (l3_extract_res and l3_extract_res.get("crc_valid")) else "INVALID"
+                    collector.record_layer3_result(
+                        status=status_l3,
+                        signature_token=sig_tok,
+                        nonce_token=nonce_tok,
+                        details={"frame_detected": True, "crc_valid": bool(l3_extract_res and l3_extract_res.get("crc_valid"))},
+                    )
+                else:
+                    collector.record_layer3_result(status="NOT_FOUND")
+            else:
+                collector.record_layer3_result(status="NOT_FOUND")
 
         # F. All carriers missing
         if not has_l1 and not has_l2 and not has_l3:
