@@ -188,12 +188,25 @@ class WatermarkPayload:
                 continue
 
             num_bytes = len(candidate_bits) // 8
-            byte_arr = bytearray()
-            for b_i in range(num_bytes):
-                chunk = candidate_bits[b_i * 8:(b_i + 1) * 8]
-                byte_arr.append(int(chunk, 2))
+            byte_arr = bytearray(int(candidate_bits[b_i * 8:(b_i + 1) * 8], 2) for b_i in range(num_bytes))
 
-            for candidate_len in range(len(SYNC_PREAMBLE) + 60, num_bytes + 1):
+            # Prioritize deterministic payload length based on header fields
+            candidate_lengths: list[int] = []
+            if num_bytes >= 7 and byte_arr[4] == STEGO_VERSION:
+                doc_len = byte_arr[5]
+                if num_bytes >= 7 + doc_len:
+                    rec_len = byte_arr[6 + doc_len]
+                    deterministic_len = 59 + doc_len + rec_len
+                    if deterministic_len <= num_bytes:
+                        candidate_lengths.append(deterministic_len)
+
+            # Fallback range search up to bounded maximum
+            max_scan_len = min(num_bytes, 256)
+            for c_len in range(len(SYNC_PREAMBLE) + 60, max_scan_len + 1):
+                if c_len not in candidate_lengths:
+                    candidate_lengths.append(c_len)
+
+            for candidate_len in candidate_lengths:
                 raw_chunk = bytes(byte_arr[:candidate_len])
                 if len(raw_chunk) >= len(SYNC_PREAMBLE) + 4:
                     body = raw_chunk[len(SYNC_PREAMBLE):-4]

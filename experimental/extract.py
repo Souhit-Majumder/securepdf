@@ -46,18 +46,57 @@ def _extract_bits_from_stream(stream: bytes, threshold: int = MIN_KERNING_THRESH
     n = len(stream)
 
     while i < n:
-        if stream[i:i + 1] == b"[":
+        b = stream[i:i + 1]
+
+        # Whitespace
+        if b in b" \t\r\n\x00\x0c":
+            i += 1
+
+        # Comment
+        elif b == b"%":
+            while i < n and stream[i:i + 1] not in b"\r\n":
+                i += 1
+
+        # Literal String outside array: skip atomically
+        elif b == b"(":
+            i += 1
+            depth = 1
+            while i < n and depth > 0:
+                if stream[i:i + 1] == b"\\" and i + 1 < n:
+                    i += 2
+                    continue
+                elif stream[i:i + 1] == b"(":
+                    depth += 1
+                elif stream[i:i + 1] == b")":
+                    depth -= 1
+                i += 1
+
+        # Hex string or dictionary outside array
+        elif b == b"<":
+            if stream[i:i + 2] == b"<<":
+                i += 2
+            else:
+                i += 1
+                while i < n and stream[i:i + 1] != b">":
+                    i += 1
+                if i < n:
+                    i += 1
+
+        # Array [ ... ] containing TJ text and kerning numbers
+        elif b == b"[":
             i += 1
             last_number: Optional[int] = None
 
             while i < n and stream[i:i + 1] != b"]":
-                while i < n and stream[i:i + 1] in b" \t\r\n":
+                while i < n and stream[i:i + 1] in b" \t\r\n\x00\x0c":
                     i += 1
                 if i >= n or stream[i:i + 1] == b"]":
                     break
 
+                sb = stream[i:i + 1]
+
                 # String literal ( ... )
-                if stream[i:i + 1] == b"(":
+                if sb == b"(":
                     s_start = i
                     i += 1
                     depth = 1
@@ -73,7 +112,7 @@ def _extract_bits_from_stream(stream: bytes, threshold: int = MIN_KERNING_THRESH
                     raw_str = stream[s_start:i]
                     inner = raw_str[1:-1]
 
-                    # If this is a space character `( )`, check preceding kerning number
+                    # If this is an inter-word space `( )`, evaluate preceding kerning number
                     if inner == b" ":
                         if last_number is not None:
                             bits.append("1" if last_number <= threshold else "0")
@@ -81,8 +120,8 @@ def _extract_bits_from_stream(stream: bytes, threshold: int = MIN_KERNING_THRESH
                             bits.append("0")
                     last_number = None
 
-                # Hex string
-                elif stream[i:i + 1] == b"<":
+                # Hex string < ... >
+                elif sb == b"<":
                     i += 1
                     while i < n and stream[i:i + 1] != b">":
                         i += 1
@@ -90,10 +129,17 @@ def _extract_bits_from_stream(stream: bytes, threshold: int = MIN_KERNING_THRESH
                         i += 1
                     last_number = None
 
+                # Isolated delimiter inside array: advance 1 byte to prevent stalls
+                elif sb in b"()<>[]":
+                    i += 1
+                    last_number = None
+
                 # Number or token
                 else:
                     t_start = i
-                    while i < n and stream[i:i + 1] not in b" \t\r\n[]()<>":
+                    while i < n and stream[i:i + 1] not in b" \t\r\n\x00\x0c[]()<>":
+                        i += 1
+                    if i == t_start:
                         i += 1
                     token = stream[t_start:i]
                     try:

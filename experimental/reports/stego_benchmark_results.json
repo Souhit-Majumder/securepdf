@@ -1,10 +1,19 @@
 {
-  "timestamp": "2026-10-13 04:00:47 UTC",
-  "source_document": "experimental/pdfs/sample_lecture.pdf",
+  "timestamp": "2026-10-18 18:47:37 UTC",
+  "source_document": "/home/souhit/Documents/Research/IS/securepdf/experimental/pdfs/sample_lecture.pdf",
   "source_sha256": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
   "document_uid": "DOC-BENCH-01",
   "recipient_uid": "STU-EXP-ALICE",
   "total_scenarios": 8,
+  "document_level_aggregation_methodology": "Exact pixel-weighted aggregation across all document pages and pixels: MSE_doc = sum(MSE_p * N_p) / sum(N_p), PSNR_doc = 10 * log10(255^2 / MSE_doc), Changed_Ratio_doc = sum(Changed_p) / sum(N_p). Granular per-page metrics are preserved in each scenario's per_page_metrics list.",
+  "unwatermarked_controls_audit": {
+    "total_controls_tested": 29,
+    "false_preambles": 0,
+    "false_crcs": 0,
+    "false_accepts": 0,
+    "empirical_false_accept_rate": "0 / 29",
+    "qualification": "Tested 29 unrelated unwatermarked PDFs spanning diverse layouts, font encodings, and PDF operators. Zero false accepts (0/29) observed. However, an empirical test on a finite sample cannot prove a general 0% false-positive rate across all arbitrary PDF documents. The 256-bit HMAC-SHA256 authentication tag provides a 2^-256 theoretical cryptographic collision bound under an uncompromised secret key."
+  },
   "results": [
     {
       "scenario_name": "00_unwatermarked_baseline",
@@ -58,7 +67,8 @@
       },
       "expected_outcome": "NO_WATERMARK (Zero False Positives)",
       "carrier_failure_mode": null,
-      "notes": "Verified extractor does not hallucinate watermarks on un-watermarked documents."
+      "notes": "Verified extractor does not hallucinate watermarks on un-watermarked documents.",
+      "per_page_metrics": null
     },
     {
       "scenario_name": "01_untouched_watermark",
@@ -72,15 +82,15 @@
       "recipient_recovered": true,
       "recovered_recipient_uid": "STU-EXP-ALICE",
       "bit_error_rate": 0.0,
-      "embedding_psnr_db": 18.03,
-      "embedding_mse": 1023.9014,
-      "embedding_changed_ratio": 0.049427,
+      "embedding_psnr_db": 18.72,
+      "embedding_mse": 872.4398,
+      "embedding_changed_ratio": 0.03821,
       "transformation_psnr_db": 999.0,
       "transformation_mse": 0.0,
       "transformation_changed_ratio": 0.0,
-      "total_psnr_db": 18.03,
-      "total_mse": 1023.9014,
-      "total_changed_ratio": 0.049427,
+      "total_psnr_db": 18.72,
+      "total_mse": 872.4398,
+      "total_changed_ratio": 0.03821,
       "control_psnr_db": null,
       "control_mse": null,
       "control_changed_ratio": null,
@@ -109,11 +119,158 @@
       "geometric_hmac_verified": true,
       "file_hashes": {
         "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
-        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375"
+        "watermarked_base": "e39476abbbf1d88ea2579565f4b20c7b3565e1eb7b567378406256e39f76b206"
       },
       "expected_outcome": "AUTHENTICATED (100% Recovery)",
       "carrier_failure_mode": null,
-      "notes": "Full payload and HMAC-SHA256 successfully recovered from text content stream."
+      "notes": "Full payload and HMAC-SHA256 successfully recovered from text content stream.",
+      "per_page_metrics": [
+        {
+          "page_number": 1,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 1023.9014,
+          "psnr_db": 18.03,
+          "changed_pixels_count": 107562,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.049427,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 2,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 1217.7063,
+          "psnr_db": 17.28,
+          "changed_pixels_count": 112375,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.051638,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 3,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 934.1482,
+          "psnr_db": 18.43,
+          "changed_pixels_count": 86152,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.039588,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 4,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 887.2757,
+          "psnr_db": 18.65,
+          "changed_pixels_count": 80767,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.037114,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 5,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 299.1672,
+          "psnr_db": 23.37,
+          "changed_pixels_count": 28909,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.013284,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        }
+      ]
     },
     {
       "scenario_name": "02_benign_resave",
@@ -127,15 +284,15 @@
       "recipient_recovered": true,
       "recovered_recipient_uid": "STU-EXP-ALICE",
       "bit_error_rate": 0.0,
-      "embedding_psnr_db": 18.03,
-      "embedding_mse": 1023.9014,
-      "embedding_changed_ratio": 0.049427,
+      "embedding_psnr_db": 18.72,
+      "embedding_mse": 872.4398,
+      "embedding_changed_ratio": 0.03821,
       "transformation_psnr_db": 999.0,
       "transformation_mse": 0.0,
       "transformation_changed_ratio": 0.0,
-      "total_psnr_db": 18.03,
-      "total_mse": 1023.9014,
-      "total_changed_ratio": 0.049427,
+      "total_psnr_db": 18.72,
+      "total_mse": 872.4398,
+      "total_changed_ratio": 0.03821,
       "control_psnr_db": 999.0,
       "control_mse": 0.0,
       "control_changed_ratio": 0.0,
@@ -164,13 +321,160 @@
       "geometric_hmac_verified": true,
       "file_hashes": {
         "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
-        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375",
-        "resaved_pdf": "e9e225ab9a8f9bb14b1ea42e7930a7d4327784ea2495228988d3e885adb9d768",
-        "resaved_control_pdf": "16c26cce04b0ec31604574acf750a150e39cf9433785d03989279422d596f805"
+        "watermarked_base": "e39476abbbf1d88ea2579565f4b20c7b3565e1eb7b567378406256e39f76b206",
+        "resaved_pdf": "099d3675e7e8eb2900a97d77081cb98baca87a175c17e39137dc6b13d557af89",
+        "resaved_control_pdf": "b0fdb98313a1acfc0e74775187a767db3980f642004bb4f10c96b5d0b670eba4"
       },
       "expected_outcome": "AUTHENTICATED (Stream Kerning Preserved)",
       "carrier_failure_mode": null,
-      "notes": "PDF parser retains TJ kerning arrays across standard save-and-compress operations."
+      "notes": "PDF parser retains TJ kerning arrays across standard save-and-compress operations.",
+      "per_page_metrics": [
+        {
+          "page_number": 1,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 1023.9014,
+          "psnr_db": 18.03,
+          "changed_pixels_count": 107562,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.049427,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 2,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 1217.7063,
+          "psnr_db": 17.28,
+          "changed_pixels_count": 112375,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.051638,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 3,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 934.1482,
+          "psnr_db": 18.43,
+          "changed_pixels_count": 86152,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.039588,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 4,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 887.2757,
+          "psnr_db": 18.65,
+          "changed_pixels_count": 80767,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.037114,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 5,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 299.1672,
+          "psnr_db": 23.37,
+          "changed_pixels_count": 28909,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.013284,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        }
+      ]
     },
     {
       "scenario_name": "03_metadata_modified",
@@ -184,15 +488,15 @@
       "recipient_recovered": true,
       "recovered_recipient_uid": "STU-EXP-ALICE",
       "bit_error_rate": 0.0,
-      "embedding_psnr_db": 18.03,
-      "embedding_mse": 1023.9014,
-      "embedding_changed_ratio": 0.049427,
+      "embedding_psnr_db": 18.72,
+      "embedding_mse": 872.4398,
+      "embedding_changed_ratio": 0.03821,
       "transformation_psnr_db": 999.0,
       "transformation_mse": 0.0,
       "transformation_changed_ratio": 0.0,
-      "total_psnr_db": 18.03,
-      "total_mse": 1023.9014,
-      "total_changed_ratio": 0.049427,
+      "total_psnr_db": 18.72,
+      "total_mse": 872.4398,
+      "total_changed_ratio": 0.03821,
       "control_psnr_db": 999.0,
       "control_mse": 0.0,
       "control_changed_ratio": 0.0,
@@ -221,13 +525,160 @@
       "geometric_hmac_verified": true,
       "file_hashes": {
         "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
-        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375",
-        "metadata_pdf": "c19bf2095f2610b6d4220a9ecc78b9a8ebe5d236a53bed46847baa4706d856f7",
-        "metadata_control_pdf": "184d47786470b98e2fae3a6b68706368fb18869c7b79b8b9b850db7d84622c85"
+        "watermarked_base": "e39476abbbf1d88ea2579565f4b20c7b3565e1eb7b567378406256e39f76b206",
+        "metadata_pdf": "5e453a772501cd378eacfc641c8cac48794b9ee758d68dbdc02a917c80e195cf",
+        "metadata_control_pdf": "6ea5680c82255f9d04e2e7f7490c7abc609d2218184144be5a1ce28e607c1818"
       },
       "expected_outcome": "AUTHENTICATED (Metadata Decoupled)",
       "carrier_failure_mode": null,
-      "notes": "Watermark resides strictly in page content streams, fully decoupled from catalog metadata."
+      "notes": "Watermark resides strictly in page content streams, fully decoupled from catalog metadata.",
+      "per_page_metrics": [
+        {
+          "page_number": 1,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 1023.9014,
+          "psnr_db": 18.03,
+          "changed_pixels_count": 107562,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.049427,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 2,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 1217.7063,
+          "psnr_db": 17.28,
+          "changed_pixels_count": 112375,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.051638,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 3,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 934.1482,
+          "psnr_db": 18.43,
+          "changed_pixels_count": 86152,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.039588,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 4,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 887.2757,
+          "psnr_db": 18.65,
+          "changed_pixels_count": 80767,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.037114,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 5,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 299.1672,
+          "psnr_db": 23.37,
+          "changed_pixels_count": 28909,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.013284,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        }
+      ]
     },
     {
       "scenario_name": "04_text_modified_appended",
@@ -241,18 +692,18 @@
       "recipient_recovered": true,
       "recovered_recipient_uid": "STU-EXP-ALICE",
       "bit_error_rate": 0.0,
-      "embedding_psnr_db": 18.03,
-      "embedding_mse": 1023.9014,
-      "embedding_changed_ratio": 0.049427,
-      "transformation_psnr_db": 34.21,
-      "transformation_mse": 24.6657,
-      "transformation_changed_ratio": 0.001018,
-      "total_psnr_db": 17.92,
-      "total_mse": 1048.5671,
-      "total_changed_ratio": 0.050444,
-      "control_psnr_db": 34.21,
-      "control_mse": 24.6657,
-      "control_changed_ratio": 0.001018,
+      "embedding_psnr_db": 18.72,
+      "embedding_mse": 872.4398,
+      "embedding_changed_ratio": 0.03821,
+      "transformation_psnr_db": 41.2,
+      "transformation_mse": 4.9331,
+      "transformation_changed_ratio": 0.000204,
+      "total_psnr_db": 18.7,
+      "total_mse": 877.3729,
+      "total_changed_ratio": 0.038414,
+      "control_psnr_db": 41.2,
+      "control_mse": 4.9331,
+      "control_changed_ratio": 0.000204,
       "page_dims_orig_pt": [
         595.0,
         842.0
@@ -278,13 +729,160 @@
       "geometric_hmac_verified": true,
       "file_hashes": {
         "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
-        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375",
-        "appended_text_pdf": "913411eff5a77ed29dcfcfc7aa18b455779155b5ff776ea80844db988bd5bbd2",
-        "appended_control_pdf": "55c8e57f906e88c8129ebce9c8d235e3b1ff61788dc613caff8072327e0e309e"
+        "watermarked_base": "e39476abbbf1d88ea2579565f4b20c7b3565e1eb7b567378406256e39f76b206",
+        "appended_text_pdf": "034bde81edea164c0d4d2dfd43472e873064c17c49f1fa753989c3b5d8add2c4",
+        "appended_control_pdf": "259de43c489ce2bed2f52728d74f051e154c087b3b21af4f7cec6780884dd783"
       },
       "expected_outcome": "AUTHENTICATED (Sync Marker Re-locks)",
       "carrier_failure_mode": null,
-      "notes": "Preamble sync search successfully locates watermark frame despite extraneous text additions."
+      "notes": "Preamble sync search successfully locates watermark frame despite extraneous text additions.",
+      "per_page_metrics": [
+        {
+          "page_number": 1,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 1048.5671,
+          "psnr_db": 17.92,
+          "changed_pixels_count": 109777,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.050444,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 2,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 1217.7063,
+          "psnr_db": 17.28,
+          "changed_pixels_count": 112375,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.051638,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 3,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 934.1482,
+          "psnr_db": 18.43,
+          "changed_pixels_count": 86152,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.039588,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 4,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 887.2757,
+          "psnr_db": 18.65,
+          "changed_pixels_count": 80767,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.037114,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 5,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 299.1672,
+          "psnr_db": 23.37,
+          "changed_pixels_count": 28909,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.013284,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        }
+      ]
     },
     {
       "scenario_name": "05_page_reordered",
@@ -298,18 +896,18 @@
       "recipient_recovered": false,
       "recovered_recipient_uid": null,
       "bit_error_rate": 0.7262,
-      "embedding_psnr_db": 18.03,
-      "embedding_mse": 1023.9014,
-      "embedding_changed_ratio": 0.049427,
-      "transformation_psnr_db": 14.85,
-      "transformation_mse": 2126.9396,
-      "transformation_changed_ratio": 0.071385,
-      "total_psnr_db": 14.83,
-      "total_mse": 2136.1204,
-      "total_changed_ratio": 0.071555,
-      "control_psnr_db": 14.86,
-      "control_mse": 2125.518,
-      "control_changed_ratio": 0.071353,
+      "embedding_psnr_db": 18.72,
+      "embedding_mse": 872.4398,
+      "embedding_changed_ratio": 0.03821,
+      "transformation_psnr_db": 16.22,
+      "transformation_mse": 1553.1771,
+      "transformation_changed_ratio": 0.054008,
+      "total_psnr_db": 15.69,
+      "total_mse": 1754.3097,
+      "total_changed_ratio": 0.062114,
+      "control_psnr_db": 16.18,
+      "control_mse": 1565.324,
+      "control_changed_ratio": 0.053944,
       "page_dims_orig_pt": [
         595.0,
         842.0
@@ -335,13 +933,160 @@
       "geometric_hmac_verified": false,
       "file_hashes": {
         "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
-        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375",
-        "reordered_pdf": "14b75fa31ada075945e87cb3bd72e9ed9141a755d4b34997f185801a0ff5ddf3",
-        "reordered_control_pdf": "3260c4eaad89bac8f73cf2319d3834025847efcb79f8e4df047643b074d50a7f"
+        "watermarked_base": "e39476abbbf1d88ea2579565f4b20c7b3565e1eb7b567378406256e39f76b206",
+        "reordered_pdf": "3dd2df9a8af8380584112336fdece50096e95a8b89c69ecf15e3d2666cdd0670",
+        "reordered_control_pdf": "e6e89cf8dc3f0f550957e0b02f7cf08925ec148d540624e52b861ac6172929c3"
       },
       "expected_outcome": "NO_WATERMARK or CRC_ERROR (Stream Fragment Disordered)",
       "carrier_failure_mode": "Page-order permutation disrupts multi-page payload sequence",
-      "notes": "Expected limitation: Inter-page bit stream requires sequential reading order."
+      "notes": "Expected limitation: Inter-page bit stream requires sequential reading order.",
+      "per_page_metrics": [
+        {
+          "page_number": 1,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 2132.1528,
+          "psnr_db": 14.84,
+          "changed_pixels_count": 155509,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.071459,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 2,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 1800.2757,
+          "psnr_db": 15.58,
+          "changed_pixels_count": 139870,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.064273,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 3,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 934.1482,
+          "psnr_db": 18.43,
+          "changed_pixels_count": 86152,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.039588,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 4,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 1777.0544,
+          "psnr_db": 15.63,
+          "changed_pixels_count": 138973,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.06386,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 5,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 2127.9176,
+          "psnr_db": 14.85,
+          "changed_pixels_count": 155353,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.071387,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        }
+      ]
     },
     {
       "scenario_name": "06_margin_cropped",
@@ -355,18 +1100,18 @@
       "recipient_recovered": true,
       "recovered_recipient_uid": "STU-EXP-ALICE",
       "bit_error_rate": 0.0,
-      "embedding_psnr_db": 18.03,
-      "embedding_mse": 1023.9014,
-      "embedding_changed_ratio": 0.049427,
-      "transformation_psnr_db": 12.64,
-      "transformation_mse": 3543.8658,
-      "transformation_changed_ratio": 0.108289,
-      "total_psnr_db": 12.64,
-      "total_mse": 3541.2601,
-      "total_changed_ratio": 0.108329,
-      "control_psnr_db": 12.64,
-      "control_mse": 3540.3083,
-      "control_changed_ratio": 0.108306,
+      "embedding_psnr_db": 18.72,
+      "embedding_mse": 872.4398,
+      "embedding_changed_ratio": 0.03821,
+      "transformation_psnr_db": 13.71,
+      "transformation_mse": 2768.1125,
+      "transformation_changed_ratio": 0.085029,
+      "total_psnr_db": 13.71,
+      "total_mse": 2767.8574,
+      "total_changed_ratio": 0.084992,
+      "control_psnr_db": 13.71,
+      "control_mse": 2768.2784,
+      "control_changed_ratio": 0.084998,
       "page_dims_orig_pt": [
         595.0,
         842.0
@@ -392,13 +1137,160 @@
       "geometric_hmac_verified": true,
       "file_hashes": {
         "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
-        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375",
-        "cropped_pdf": "804be964eab7186c4a41ad8ca644feb363ae2710acd481425c5a93f198f40e34",
-        "cropped_control_pdf": "f48028e064ec16b0027aedf4bd625b1dd9e5418dbaa756f55d6a6df07a2cd069"
+        "watermarked_base": "e39476abbbf1d88ea2579565f4b20c7b3565e1eb7b567378406256e39f76b206",
+        "cropped_pdf": "a44312945770387e40fd138904f336c6741ca441324ddca82c5faa4d68d5610d",
+        "cropped_control_pdf": "5109f4c5331531db1729af52010b9f80f68334e31d76198b26e239d57d841372"
       },
       "expected_outcome": "AUTHENTICATED (Content Streams Unaltered)",
       "carrier_failure_mode": null,
-      "notes": "Content stream TJ kerning remains intact despite view cropbox modifications."
+      "notes": "Content stream TJ kerning remains intact despite view cropbox modifications.",
+      "per_page_metrics": [
+        {
+          "page_number": 1,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            575.0,
+            822.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1713,
+            1198,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 3541.2601,
+          "psnr_db": 12.64,
+          "changed_pixels_count": 222309,
+          "total_pixels_count": 2052174,
+          "changed_pixels_ratio": 0.108329,
+          "is_visually_identical": false,
+          "dimensions_match": false
+        },
+        {
+          "page_number": 2,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            575.0,
+            822.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1713,
+            1198,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 3092.634,
+          "psnr_db": 13.23,
+          "changed_pixels_count": 194981,
+          "total_pixels_count": 2052174,
+          "changed_pixels_ratio": 0.095012,
+          "is_visually_identical": false,
+          "dimensions_match": false
+        },
+        {
+          "page_number": 3,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            575.0,
+            822.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1713,
+            1198,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 2570.0858,
+          "psnr_db": 14.03,
+          "changed_pixels_count": 162372,
+          "total_pixels_count": 2052174,
+          "changed_pixels_ratio": 0.079122,
+          "is_visually_identical": false,
+          "dimensions_match": false
+        },
+        {
+          "page_number": 4,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            575.0,
+            822.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1713,
+            1198,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 2495.0728,
+          "psnr_db": 14.16,
+          "changed_pixels_count": 157547,
+          "total_pixels_count": 2052174,
+          "changed_pixels_ratio": 0.076771,
+          "is_visually_identical": false,
+          "dimensions_match": false
+        },
+        {
+          "page_number": 5,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            575.0,
+            822.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1713,
+            1198,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 2140.2343,
+          "psnr_db": 14.83,
+          "changed_pixels_count": 134887,
+          "total_pixels_count": 2052174,
+          "changed_pixels_ratio": 0.065729,
+          "is_visually_identical": false,
+          "dimensions_match": false
+        }
+      ]
     },
     {
       "scenario_name": "07_rasterization_scan_sim",
@@ -412,15 +1304,15 @@
       "recipient_recovered": false,
       "recovered_recipient_uid": null,
       "bit_error_rate": null,
-      "embedding_psnr_db": 18.03,
-      "embedding_mse": 1023.9014,
-      "embedding_changed_ratio": 0.049427,
+      "embedding_psnr_db": 18.72,
+      "embedding_mse": 872.4398,
+      "embedding_changed_ratio": 0.03821,
       "transformation_psnr_db": 999.0,
       "transformation_mse": 0.0,
       "transformation_changed_ratio": 0.0,
-      "total_psnr_db": 18.03,
-      "total_mse": 1023.9014,
-      "total_changed_ratio": 0.049427,
+      "total_psnr_db": 18.72,
+      "total_mse": 872.4398,
+      "total_changed_ratio": 0.03821,
       "control_psnr_db": 999.0,
       "control_mse": 0.0,
       "control_changed_ratio": 0.0,
@@ -449,13 +1341,160 @@
       "geometric_hmac_verified": false,
       "file_hashes": {
         "source_pdf": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
-        "watermarked_base": "a41bac3ae546e22c4313584164bd371e17437831e70ba30fcff23030699ef375",
-        "rasterized_pdf": "3b4352253dbaed4e03001c672169b0f8791ba97229926eb0af7a3a59496e82d3",
-        "rasterized_control_pdf": "3016774e1b4662f4d7649cdf590f5849ccfc7f4917f7f10b06dbe20b6c86f57b"
+        "watermarked_base": "e39476abbbf1d88ea2579565f4b20c7b3565e1eb7b567378406256e39f76b206",
+        "rasterized_pdf": "ea8f582dd73c75872745a6558487cd8c536d4a1cc57ec94c272a45845b1f312b",
+        "rasterized_control_pdf": "b91389b5a911ff766c0c0199b77bf2e927cc6854941c3d5b81afe3d5ddab40b7"
       },
       "expected_outcome": "NO_WATERMARK (Carrier Inherent Limit)",
       "carrier_failure_mode": "Text vector carrier completely destroyed by rasterization",
-      "notes": "Fundamental physical limitation: Text-kerning watermarks require vector text operators. Converting to image pixels eliminates the carrier completely."
+      "notes": "Fundamental physical limitation: Text-kerning watermarks require vector text operators. Converting to image pixels eliminates the carrier completely.",
+      "per_page_metrics": [
+        {
+          "page_number": 1,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 1023.9014,
+          "psnr_db": 18.03,
+          "changed_pixels_count": 107562,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.049427,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 2,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 1217.7063,
+          "psnr_db": 17.28,
+          "changed_pixels_count": 112375,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.051638,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 3,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 934.1482,
+          "psnr_db": 18.43,
+          "changed_pixels_count": 86152,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.039588,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 4,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 887.2757,
+          "psnr_db": 18.65,
+          "changed_pixels_count": 80767,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.037114,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        },
+        {
+          "page_number": 5,
+          "page_dims_orig_pt": [
+            595.0,
+            842.0
+          ],
+          "page_dims_comp_pt": [
+            595.0,
+            842.0
+          ],
+          "image_shape_orig_px": [
+            1755,
+            1240,
+            3
+          ],
+          "image_shape_comp_px": [
+            1755,
+            1240,
+            3
+          ],
+          "threshold": 1.0,
+          "mse": 299.1672,
+          "psnr_db": 23.37,
+          "changed_pixels_count": 28909,
+          "total_pixels_count": 2176200,
+          "changed_pixels_ratio": 0.013284,
+          "is_visually_identical": false,
+          "dimensions_match": true
+        }
+      ]
     }
   ]
 }

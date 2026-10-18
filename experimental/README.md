@@ -112,21 +112,32 @@ python experimental/cli.py evaluate \
 
 The evaluation suite subjects watermarked documents to 8 controlled scenarios. Results are saved in `experimental/reports/stego_benchmark_results.json` and plotted in `experimental/charts/`.
 
-| Scenario | Description | Status | HMAC Valid | Bit Error Rate (BER) | Rendered PSNR |
+| Scenario | Description | Status | HMAC Valid | Bit Error Rate (BER) | Total Rendered PSNR |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **00 Baseline** | Plain un-watermarked PDF (false-positive test) | `NO_WATERMARK` | False | 1.00 | $\infty$ (999.0 dB) |
-| **01 Untouched** | Pristine watermarked document | `AUTHENTICATED` | **True** | **0.00** | 18.03 dB |
-| **02 Benign Re-Save** | PyMuPDF save with garbage collection & deflate | `AUTHENTICATED` | **True** | **0.00** | $\infty$ (999.0 dB) |
-| **03 Metadata Mod** | Title and Author altered in catalog dictionary | `AUTHENTICATED` | **True** | **0.00** | 18.03 dB |
-| **04 Appended Text** | Extraneous text banner added to page | `AUTHENTICATED` | **True** | **0.00** | 34.21 dB |
-| **05 Page Reorder** | Pages reversed `[N..1]` | `NO_WATERMARK` | False | 1.00 | 18.03 dB |
-| **06 Margin Crop** | 10 pt margins cropped on all pages | `AUTHENTICATED` | **True** | **0.00** | 18.03 dB |
-| **07 Rasterization** | Print-scan / bitmap rasterization (150 DPI) | `NO_WATERMARK` | False | 1.00 | 42.50 dB |
+| **00 Baseline** | Plain un-watermarked PDF (false-positive test) | `NO_WATERMARK` | False | N/A (null) | $\infty$ (999.0 dB) |
+| **01 Untouched** | Pristine watermarked document | `AUTHENTICATED` | **True** | **0.00** | **18.72 dB** |
+| **02 Benign Re-Save** | PyMuPDF save with garbage collection & deflate | `AUTHENTICATED` | **True** | **0.00** | 18.72 dB |
+| **03 Metadata Mod** | Title and Author altered in catalog dictionary | `AUTHENTICATED` | **True** | **0.00** | 18.72 dB |
+| **04 Appended Text** | Extraneous text banner added to page | `AUTHENTICATED` | **True** | **0.00** | 18.70 dB |
+| **05 Page Reorder** | Pages reversed `[N..1]` | `CRC_ERROR` | False | 0.7262 | 15.69 dB |
+| **06 Margin Crop** | 10 pt margins cropped on all pages | `AUTHENTICATED` | **True** | **0.00** | 13.71 dB |
+| **07 Rasterization** | Print-scan / bitmap rasterization (150 DPI) | `NO_WATERMARK` | False | N/A (null) | 18.72 dB |
 
-### Visual Distortion Analysis
-- **Changed Pixels Ratio**: Approximately **$3.8\% \text{ to } 4.9\%$** of pixels differ when compared at 150 DPI due to sub-pixel glyph rasterization shifts across modulated lines.
-- **PSNR**: Average PSNR is **$\approx 18.0\text{ to }23.3\text{ dB}$** when computed against un-watermarked text. While casual human readers do not notice the $0.24\text{ pt}$ space adjustment, pixel-level automated comparators easily detect the shift.
-- **Imperceptibility Claim Boundary**: The watermark is **not steganographically invisible to automated pixel difference comparators**, although it preserves typography, line layout, and copy-paste text extraction without human-visible defects.
+### Visual Distortion Analysis & Mathematical Aggregation
+- **Aggregation Methodology**: Evaluated across all 5 pages ($10,881,000$ total RGB pixels at 150 DPI). Document-level mean squared error is computed as the exact page-pixel weighted mean:
+  $$\text{MSE}_{\text{doc}} = \frac{\sum_{p=1}^P \text{MSE}_p \cdot N_p}{\sum_{p=1}^P N_p} = \mathbf{872.4398}$$
+  $$\text{PSNR}_{\text{doc}} = 10 \cdot \log_{10}\left(\frac{255^2}{\text{MSE}_{\text{doc}}}\right) = \mathbf{18.72\text{ dB}}$$
+  Per-page values: Page 1 (18.03 dB), Page 2 (17.28 dB), Page 3 (18.43 dB), Page 4 (18.65 dB), Page 5 (23.37 dB).
+- **Changed Pixels Ratio**: Exactly **$3.8210\%$** ($415,765$ of $10,881,000$ pixels) differ at 150 DPI due to sub-pixel glyph rasterization shifts across modulated lines.
+- **Bit Error Rate (BER) Synchronization**: BER is computed against the reference payload if and only if framing synchronization succeeds. When framing fails (e.g., Scenario 00 and Scenario 07), BER is reported as `null` (N/A) rather than an arbitrary 1.00.
+
+### False-Positive Control Accounting
+- Tested across **29 unique, unwatermarked control documents** spanning diverse layouts, font encodings, and PDF operators (`experimental/reports/false_positive_controls.json`).
+- Observed results on this finite sample:
+  - False Preamble Detections: **0 / 29**
+  - False CRC-32 Passes: **0 / 29**
+  - False HMAC-SHA256 Authentications: **0 / 29**
+- *Qualification*: An empirical test on 29 documents observes zero false positives, but cannot mathematically prove a 0% rate for all arbitrary PDFs. Cryptographic security is bounded by the 256-bit HMAC tag ($2^{-256}$ collision probability under an uncompromised key).
 
 ---
 
@@ -134,14 +145,16 @@ The evaluation suite subjects watermarked documents to 8 controlled scenarios. R
 
 1. **Carrier Inherent Limitation (Rasterization & Print-Scan)**:
    - Text-kerning watermarks exist exclusively as vector operators inside PDF content streams (`TJ`).
-   - Rasterizing pages to bitmaps (or printing and scanning) destroys the vector carrier entirely. Extraction reports `NO_WATERMARK` with $100\%$ Bit Error Rate.
+   - Rasterizing pages to bitmaps (or printing and scanning) destroys the vector carrier entirely. Extraction reports `NO_WATERMARK` with framing failure (`null` BER).
 2. **Page Permutation Vulnerability**:
-   - Because the 672-bit payload is distributed sequentially across pages, page order disruption breaks the bit framing, causing authentication to fail.
+   - Because the 672-bit payload is distributed sequentially across pages, page order disruption breaks the multi-page sequence, resulting in a framing synchronization failure or CRC checksum mismatch (`CRC_ERROR`).
 3. **Dual-Track Extraction**:
    - Stream parsing is the primary, reliable decoding mechanism.
    - Geometric bounding-box gap extraction is an experimental alternative sensitive to font metrics and sub-pixel rounding.
 4. **Content Integrity**:
    - A valid watermark proves **recipient attribution**, not entire document content immutability. An attacker can append external content without invalidating the embedded kerning watermark.
+5. **No Formal Psychophysics / Human-Perception Testing**:
+   - Visual imperceptibility claims are based on numerical displacement ($0.24\text{ to }0.30\text{ pt}$) and visual inspection; no formal double-blind human perceptual psychophysics trials have been conducted.
 
 ---
 

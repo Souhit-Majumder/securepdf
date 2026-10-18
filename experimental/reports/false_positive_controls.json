@@ -1,0 +1,301 @@
+{
+  "total_controls_tested": 29,
+  "false_preambles": 0,
+  "false_crcs": 0,
+  "false_accepts": 0,
+  "empirical_false_accept_rate": "0 / 29",
+  "empirical_false_accept_pct": 0.0,
+  "qualification": "Tested 29 unrelated unwatermarked PDFs spanning diverse layouts, font encodings, and PDF operators. Zero false accepts (0/29) observed. However, an empirical test on a finite sample cannot prove a general 0% false-positive rate across all arbitrary PDF documents. The 256-bit HMAC-SHA256 authentication tag provides a 2^-256 theoretical cryptographic collision bound under an uncompromised secret key.",
+  "controls": [
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/experimental/pdfs/sample_lecture.pdf",
+      "sha256": "c10d406b88dd73db50969c9815fad57b5ef5ea3ac1892a23ac20d9593bf12f24",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0034
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/experimental/pdfs/short_abstract.pdf",
+      "sha256": "22d6db43fa005e4dd49401a9a7a53a37b99529c0ec51c76722daf23cffb2c487",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0009
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/experimental/pdfs/technical_report.pdf",
+      "sha256": "bb5e6859aa778e85521170a0e001eb0019b8d6322b2f99db66cf4ee68d814ea4",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0033
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/experimental/pdfs/twocolumn_paper.pdf",
+      "sha256": "dc1af0e614c214dda0e47b09ffa7f4673e739cfb6c01bb1c5966c6f08f53ce03",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.004
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/001_orig.pdf",
+      "sha256": "56e62f1b0f28441a0d73a43f7b62166b051f64edac00a69c623580fa5b0e2a21",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0304
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/002_orig.pdf",
+      "sha256": "5bddc0db3502dfc365a7ab27ab5b45b67d23b163a1f556c0d0c96f629c9f8ff8",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0207
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/003_orig.pdf",
+      "sha256": "1d3546a7f5ac8d3d6cc68003d48dedba37e0056be1b8bf86dc23bbf69098d20c",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0248
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/004_orig.pdf",
+      "sha256": "590ce4990eac19baada3aefc463894f2d1928c59e2b73bc5b5b6c3b784fbdef5",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0016
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/005_orig.pdf",
+      "sha256": "b475ee56c105ddd4429abea4d3bb598d16802f2b7ba2f3d7380c298d93ed9366",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0393
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/006_orig.pdf",
+      "sha256": "54bd43378a103720069d604b0b62ebd9a2676abc8add64ee34711590b3844ff7",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0114
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/007_orig.pdf",
+      "sha256": "ff304ad1e79db5ef0e1986c12d20ca46ddff12762c7598ccaa9b78343b62e046",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0446
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/008_orig.pdf",
+      "sha256": "ba4bb6ab55a7272222719869bcc165cb9181358294875f94b49cef4f192228fe",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0133
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/009_orig.pdf",
+      "sha256": "f2631e97f3c70f24b17e572d9ce73bd15f2b052020bfaa55dc5c1e6d9c90f836",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0027
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/010_orig.pdf",
+      "sha256": "c6af135e2659274c19b8a2c4d41530ce149d043201288855ec63eba23f876c9e",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0009
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/001_benign_resave.pdf",
+      "sha256": "a18d1b4e87af99a99c760ad30c41e65c984d3f5858da116d4ba74cca951fabd9",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0304
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/002_benign_resave.pdf",
+      "sha256": "0a7b75f74bdc083ba15f7dd924418dd3f160a510f75b30a4674233bda320df93",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.021
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/003_benign_resave.pdf",
+      "sha256": "70244e8e70347a50c1bff04f38b1df104ca8838cf217d887c55896af4c505c7e",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0234
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/004_benign_resave.pdf",
+      "sha256": "e7e525aa80fa73d458ce184c54dfcf8e04d99095e7ba3eb951963e072226ec1b",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0016
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/005_benign_resave.pdf",
+      "sha256": "3a26de87ec96c1c553762fd659d239769183cdfb9ed20671f9ee8542d9f98813",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0381
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/001_mod_text.pdf",
+      "sha256": "9bb99e894d029a2f0b3ac480dbe1e42a88843130c80977625b446d060c8a9f4a",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0331
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/002_mod_text.pdf",
+      "sha256": "e6a993fb0f16ff981b2951ffc4b34010b5cd7454717a1bb5479efde1d73b77c4",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0233
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/003_mod_text.pdf",
+      "sha256": "47a63b1857fe97f7d9d0a161f4b43272a3b0ffc7d44df26e0ffb4166afb7fb41",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.025
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/004_mod_text.pdf",
+      "sha256": "a7857ac5d7a4748bcf5a2c0dce203ba4bf04480da806d5e45a22baa276a40dfd",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0018
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/ml/safedocs_experiment/variants/005_mod_text.pdf",
+      "sha256": "fff6e31a3eb2fca3a04baf16ab2b2baa402ef40986d15bebdad1526ad01cd59d",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0417
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/documents/12651697-80cf-490e-91fe-45420c37eca4.pdf",
+      "sha256": "7d8e61d97a3570fb0dfac602493815ba51629c27276fdc8f7d3940e28bc69257",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0006
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/documents/13cda109-cbe5-496d-acd4-446331c6fe72.pdf",
+      "sha256": "6ec75e9691afcacf10cd4c17cf7e2a9d62d96f4b075c3acef7696663285eb10d",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0004
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/documents/2c68e390-40f0-4db3-93f9-6277500a443b.pdf",
+      "sha256": "8282886246718091d1ac3081aafcd62282c54c3bb169d2c1d30f6d22a1f0e939",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0004
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/documents/40eb0806-4cac-412c-9416-6517b7d8f459.pdf",
+      "sha256": "cc9c093dd443383442173ee84a984d80a17ae8e9561ad2a3ec09d92acb887842",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0006
+    },
+    {
+      "path": "/home/souhit/Documents/Research/IS/securepdf/data/documents/46baebc1-df0d-4ea9-9b12-f0cb2d7fc213.pdf",
+      "sha256": "095d769e32d9a23e4fb6a5bf1a3d09b8fc41ce529c852b202f80573e64cb8d02",
+      "status": "NO_WATERMARK",
+      "frame_detected": false,
+      "crc_valid": false,
+      "hmac_valid": false,
+      "recipient_recovered": false,
+      "execution_time_s": 0.0005
+    }
+  ]
+}

@@ -31,6 +31,88 @@ class DistortionMetrics:
     dimensions_match: bool
 
 
+@dataclass
+class DocumentDistortionSummary:
+    """
+    Document-level aggregation of visual distortion metrics across all pages and pixels.
+    Aggregates MSE by weighting by total page pixels:
+    Aggregate MSE = sum(page_MSE * page_pixels) / sum(page_pixels).
+    Aggregate PSNR = 10 * log10(255^2 / Aggregate MSE).
+    Aggregate Changed Ratio = sum(changed_pixels) / sum(page_pixels).
+    Preserves granular per-page metrics in page_metrics.
+    """
+    page_metrics: list[DistortionMetrics]
+    total_pages: int
+    total_pixels_count: int
+    changed_pixels_count: int
+    changed_pixels_ratio: float
+    aggregate_mse: float
+    aggregate_psnr_db: float
+    all_dimensions_match: bool
+    is_visually_identical: bool
+    page_dims_orig_pt: tuple[float, float]
+    page_dims_comp_pt: tuple[float, float]
+    image_shape_orig_px: tuple[int, int, int]
+    image_shape_comp_px: tuple[int, int, int]
+    threshold: float
+
+
+def aggregate_document_distortion(page_metrics: list[DistortionMetrics]) -> DocumentDistortionSummary:
+    """
+    Aggregates per-page distortion metrics across all pages and pixels into a document-level summary.
+    Preserves exact per-page metrics while computing weighted aggregate MSE, PSNR, and changed pixel ratio.
+    """
+    if not page_metrics:
+        return DocumentDistortionSummary(
+            page_metrics=[],
+            total_pages=0,
+            total_pixels_count=0,
+            changed_pixels_count=0,
+            changed_pixels_ratio=0.0,
+            aggregate_mse=0.0,
+            aggregate_psnr_db=999.0,
+            all_dimensions_match=True,
+            is_visually_identical=True,
+            page_dims_orig_pt=(0.0, 0.0),
+            page_dims_comp_pt=(0.0, 0.0),
+            image_shape_orig_px=(0, 0, 0),
+            image_shape_comp_px=(0, 0, 0),
+            threshold=1.0,
+        )
+
+    total_pixels = sum(m.total_pixels_count for m in page_metrics)
+    total_changed = sum(m.changed_pixels_count for m in page_metrics)
+    # Exact pixel-weighted mean squared error across all pixels in the document
+    total_squared_error = sum(m.mse * m.total_pixels_count for m in page_metrics)
+    agg_mse = (total_squared_error / total_pixels) if total_pixels > 0 else 0.0
+    agg_ratio = (total_changed / total_pixels) if total_pixels > 0 else 0.0
+
+    if agg_mse == 0.0:
+        agg_psnr = 999.0  # Sentinel for infinite PSNR (identical pixels)
+    else:
+        agg_psnr = float(10.0 * math.log10((255.0 ** 2) / agg_mse))
+
+    all_dims = all(m.dimensions_match for m in page_metrics)
+    is_ident = all(m.is_visually_identical for m in page_metrics)
+
+    return DocumentDistortionSummary(
+        page_metrics=page_metrics,
+        total_pages=len(page_metrics),
+        total_pixels_count=total_pixels,
+        changed_pixels_count=total_changed,
+        changed_pixels_ratio=round(agg_ratio, 6),
+        aggregate_mse=round(agg_mse, 4),
+        aggregate_psnr_db=round(agg_psnr, 2),
+        all_dimensions_match=all_dims,
+        is_visually_identical=is_ident,
+        page_dims_orig_pt=page_metrics[0].page_dims_orig_pt,
+        page_dims_comp_pt=page_metrics[0].page_dims_comp_pt,
+        image_shape_orig_px=page_metrics[0].image_shape_orig_px,
+        image_shape_comp_px=page_metrics[0].image_shape_comp_px,
+        threshold=page_metrics[0].threshold,
+    )
+
+
 def calculate_page_distortion(
     orig_page: fitz.Page,
     watermarked_page: fitz.Page,

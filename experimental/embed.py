@@ -82,21 +82,67 @@ def _parse_and_embed_page_stream(
     total_bits = len(bits_to_embed)
 
     while i < n:
-        # Check for [ ... ] array
-        if stream[i:i + 1] == b"[":
+        b = stream[i:i + 1]
+
+        # Whitespace
+        if b in b" \t\r\n\x00\x0c":
+            out.extend(b)
+            i += 1
+
+        # Comment
+        elif b == b"%":
+            c_start = i
+            while i < n and stream[i:i + 1] not in b"\r\n":
+                i += 1
+            out.extend(stream[c_start:i])
+
+        # Literal String outside array: copy verbatim
+        elif b == b"(":
+            s_start = i
+            i += 1
+            depth = 1
+            while i < n and depth > 0:
+                if stream[i:i + 1] == b"\\" and i + 1 < n:
+                    i += 2
+                    continue
+                elif stream[i:i + 1] == b"(":
+                    depth += 1
+                elif stream[i:i + 1] == b")":
+                    depth -= 1
+                i += 1
+            out.extend(stream[s_start:i])
+
+        # Hex string or dictionary outside array
+        elif b == b"<":
+            if stream[i:i + 2] == b"<<":
+                out.extend(b"<<")
+                i += 2
+            else:
+                h_start = i
+                i += 1
+                while i < n and stream[i:i + 1] != b">":
+                    i += 1
+                if i < n:
+                    i += 1
+                out.extend(stream[h_start:i])
+
+        # Array [ ... ] containing TJ text
+        elif b == b"[":
             out.extend(b"[")
             i += 1
 
             while i < n and stream[i:i + 1] != b"]":
                 # Copy whitespace
-                while i < n and stream[i:i + 1] in b" \t\r\n":
+                while i < n and stream[i:i + 1] in b" \t\r\n\x00\x0c":
                     out.extend(stream[i:i + 1])
                     i += 1
                 if i >= n or stream[i:i + 1] == b"]":
                     break
 
+                sb = stream[i:i + 1]
+
                 # String literal ( ... ) with balanced parentheses
-                if stream[i:i + 1] == b"(":
+                if sb == b"(":
                     s_start = i
                     i += 1
                     depth = 1
@@ -120,9 +166,9 @@ def _parse_and_embed_page_stream(
                                 out.extend(b"(" + part + b")")
                             if p_idx < len(parts) - 1:
                                 if bit_idx < total_bits:
-                                    b = bits_to_embed[bit_idx]
+                                    bit_val = bits_to_embed[bit_idx]
                                     bit_idx += 1
-                                    k = shift if b == "1" else 0
+                                    k = shift if bit_val == "1" else 0
                                 else:
                                     k = 0
                                 out.extend(f" {k} ( ) ".encode("ascii"))
@@ -130,7 +176,7 @@ def _parse_and_embed_page_stream(
                         out.extend(raw_str)
 
                 # Hex string < ... >
-                elif stream[i:i + 1] == b"<":
+                elif sb == b"<":
                     h_start = i
                     i += 1
                     while i < n and stream[i:i + 1] != b">":
@@ -139,12 +185,21 @@ def _parse_and_embed_page_stream(
                         i += 1
                     out.extend(stream[h_start:i])
 
+                # Isolated delimiter inside array: advance 1 byte
+                elif sb in b"()<>[]":
+                    out.extend(sb)
+                    i += 1
+
                 # Number or other token inside array
                 else:
                     t_start = i
-                    while i < n and stream[i:i + 1] not in b" \t\r\n[]()<>":
+                    while i < n and stream[i:i + 1] not in b" \t\r\n\x00\x0c[]()<>":
                         i += 1
-                    out.extend(stream[t_start:i])
+                    if i == t_start:
+                        out.extend(stream[i:i + 1])
+                        i += 1
+                    else:
+                        out.extend(stream[t_start:i])
 
             if i < n and stream[i:i + 1] == b"]":
                 out.extend(b"]")

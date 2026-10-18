@@ -15,7 +15,11 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from experimental.charts import generate_evaluation_charts
-from experimental.comparator import compare_documents, render_visual_comparison_figure
+from experimental.comparator import (
+    aggregate_document_distortion,
+    compare_documents,
+    render_visual_comparison_figure,
+)
 from experimental.config import CHARTS_DIR, DEFAULT_KEY_PATH, EXPERIMENTAL_DIR, OUTPUT_DIR, REPORTS_DIR
 from experimental.crypto_adapter import (
     generate_watermark_payload,
@@ -129,6 +133,19 @@ def cmd_compare(args: argparse.Namespace) -> int:
         print(f"  • PSNR                 : {m.psnr_db:.2f} dB")
         print(f"  • Changed Pixels Ratio : {m.changed_pixels_ratio * 100:.4f}% ({m.changed_pixels_count}/{m.total_pixels_count}, threshold > {m.threshold})")
         print(f"  • Visually Identical   : {m.is_visually_identical}")
+
+    summary = aggregate_document_distortion(metrics)
+    print("\n" + "=" * 65)
+    print("  DOCUMENT-LEVEL AGGREGATE (Across All Pages & Pixels)")
+    print("=" * 65)
+    print(f"  • Total Pages Tested   : {summary.total_pages}")
+    print(f"  • Total Pixels Count   : {summary.total_pixels_count:,}")
+    print(f"  • Aggregate MSE        : {summary.aggregate_mse:.4f}")
+    psnr_disp = f"{summary.aggregate_psnr_db:.2f} dB" if summary.aggregate_psnr_db < 900 else "inf (Identical)"
+    print(f"  • Aggregate PSNR       : {psnr_disp}")
+    print(f"  • Aggregate Changed %  : {summary.changed_pixels_ratio * 100:.4f}% ({summary.changed_pixels_count:,}/{summary.total_pixels_count:,})")
+    print(f"  • All Dimensions Match : {summary.all_dimensions_match}")
+    print(f"  • Visually Identical   : {summary.is_visually_identical}")
 
     if args.diff_image:
         diff_path = _resolve_path(args.diff_image, REPORTS_DIR)

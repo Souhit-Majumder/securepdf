@@ -129,3 +129,47 @@ def test_find_and_decode_from_bits_not_found():
     random_bits = "0101010011001101" * 20
     recovered = WatermarkPayload.find_and_decode_from_bits(random_bits)
     assert recovered is None
+
+
+def test_payload_exact_binary_layout_and_offsets():
+    """
+    Verifies the authoritative wire format:
+    Offset  Size  Field
+    0       4     Sync Preamble ('SPDF')
+    4       1     Version (0x01)
+    5       1     Doc UID Length (L_doc)
+    6       L_doc Doc UID bytes
+    6+L_doc 1     Recipient UID Length (L_rec)
+    7+L_doc L_rec Recipient UID bytes
+    7+L_d+L_r 16  Nonce (128-bit cryptographic salt)
+    23+L_d+L_r 32 HMAC-SHA256 (256-bit authentication tag)
+    55+L_d+L_r 4  CRC-32 (covering body fields bytes 4 to end-4)
+    Total size = 59 + L_doc + L_rec bytes.
+    """
+    import struct, zlib
+    doc_uid = "DOC-BENCH-01"    # 12 bytes
+    rec_uid = "STU-EXP-ALICE"   # 13 bytes
+    nonce = b"\x01" * 16        # 16 bytes (128 bits)
+    hmac_tag = b"\x02" * 32     # 32 bytes (256 bits)
+
+    payload = WatermarkPayload(doc_uid, rec_uid, nonce, hmac_tag)
+    raw = payload.to_bytes()
+
+    assert len(raw) == 84  # 59 + 12 + 13 = 84 bytes
+    assert payload.total_bits == 672  # 84 * 8 = 672 bits
+
+    # Check field offsets
+    assert raw[0:4] == b"SPDF"
+    assert raw[4] == 0x01
+    assert raw[5] == 12
+    assert raw[6:18] == doc_uid.encode("utf-8")
+    assert raw[18] == 13
+    assert raw[19:32] == rec_uid.encode("utf-8")
+    assert raw[32:48] == nonce
+    assert raw[48:80] == hmac_tag
+
+    # CRC covers body: raw[4:80]
+    computed_crc = zlib.crc32(raw[4:80]) & 0xFFFFFFFF
+    stored_crc = struct.unpack(">I", raw[80:84])[0]
+    assert stored_crc == computed_crc
+

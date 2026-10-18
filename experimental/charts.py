@@ -107,20 +107,21 @@ def generate_evaluation_charts(
 
     # Chart 4: Full HMAC-SHA256 Payload Capacity Breakdown
     payload_components = {
-        "Preamble (Sync)": 32,
-        "Version Header": 8,
-        "Document UID": 56,
-        "Recipient UID": 88,
+        "Preamble (Sync, 32-bit)": 32,
+        "Version Header (8-bit)": 8,
+        "UID Length Headers (16-bit)": 16,
+        "Document UID (96-bit)": 96,
+        "Recipient UID (104-bit)": 104,
         "Salt Nonce (128-bit)": 128,
         "Full HMAC-SHA256 (256-bit)": 256,
-        "CRC-32 Checksum": 32,
+        "CRC-32 Checksum (32-bit)": 32,
     }
     total_bits = sum(payload_components.values())
 
     fig, ax = plt.subplots(figsize=(8, 5), dpi=150)
     keys = list(payload_components.keys())
     vals = list(payload_components.values())
-    colors_pie = ["#78909c", "#8d6e63", "#42a5f5", "#26a69a", "#ab47bc", "#ef5350", "#ffa726"]
+    colors_pie = ["#78909c", "#8d6e63", "#5c6bc0", "#42a5f5", "#26a69a", "#ab47bc", "#ef5350", "#ffa726"]
 
     ax.pie(vals, labels=[f"{k}\n({v} bits)" for k, v in zip(keys, vals)], colors=colors_pie, autopct="%1.1f%%", startangle=140, textprops={"fontsize": 8})
     ax.set_title(f"Full HMAC-SHA256 Watermark Capacity Budget ({total_bits} bits total)", fontsize=12, fontweight="bold")
