@@ -43,7 +43,14 @@ class FingerprintService:
         )
         
         doc = open_pdf(input_pdf_path)
-        embed_payload(doc, document_uid, nonce, fingerprint_hex)
+        embed_payload(
+            doc,
+            document_uid,
+            nonce,
+            fingerprint_hex,
+            student_uid=student_uid,
+            master_key=self.master_key,
+        )
         save_pdf(doc, output_pdf_path)
         doc.close()
         
