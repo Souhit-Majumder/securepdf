@@ -67,7 +67,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
     // Perspective camera positioned slightly to the left (-0.15) to balance between left dock and right inspector
     const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 100);
-    camera.position.set(-0.15, 0.0, 4.2);
+    camera.position.set(-0.15, 0.0, 6.8);
     camera.lookAt(-0.15, 0.0, 0.0);
     cameraRef.current = camera;
 
@@ -200,9 +200,9 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   // 2. Camera zoom handling
   useEffect(() => {
     if (cameraRef.current) {
-      const baseDistance = 4.2;
+      const baseDistance = 6.8;
       const targetZ = baseDistance / (zoomLevel / 100);
-      cameraRef.current.position.z = THREE.MathUtils.clamp(targetZ, 1.8, 8.0);
+      cameraRef.current.position.z = THREE.MathUtils.clamp(targetZ, 2.5, 14.0);
     }
   }, [zoomLevel]);
 
@@ -215,7 +215,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         paperMeshRef.current.rotation.set(0, 0, 0);
       }
       if (cameraRef.current) {
-        cameraRef.current.position.set(-0.15, 0.0, 4.2);
+        cameraRef.current.position.set(-0.15, 0.0, 6.8);
       }
     }
   }, [cameraResetTrigger]);

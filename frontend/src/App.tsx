@@ -108,13 +108,6 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Status Badge */}
-        {inspectionReport && (
-          <div className="hidden md:flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-400/35 text-xs font-semibold text-emerald-800 shadow-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] tracking-tight">Inspection Complete</span>
-          </div>
-        )}
 
         <div className="w-px h-3.5 bg-slate-300/60" />
 
@@ -143,9 +136,6 @@ export const App: React.FC = () => {
 
       {/* ---------------- Main Forensic Workspace ---------------- */}
       <main className="flex-1 w-full h-full relative overflow-hidden flex items-center justify-center">
-        {/* Large Translucent Frosted Glass Sheet (Architectural Stage from Reference Image) */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[82%] max-w-[1240px] h-[76%] max-h-[720px] spatial-backdrop-sheet rounded-[32px] pointer-events-none z-0" />
-
         {/* Left: Floating Dark-Slate Frosted Glass Layer Selector Dock (Matches Reference Image) */}
         {inspectionReport && isWebglAvailable && (
           <aside className="absolute top-24 left-8 z-20 w-44 glass-dock-dark rounded-2xl p-2.5 flex flex-col gap-1.5 shadow-2xl">
@@ -227,39 +217,41 @@ export const App: React.FC = () => {
           </aside>
         )}
 
-        {/* Center: 3D Viewport or Fallback (PDF is 100% Frozen & Preserved) */}
-        <div className="flex-1 w-full h-full relative z-10">
-          {!selectedFile ? (
-            <UploadZone
-              onFileSelected={handleFileSelected}
-              isLoading={isLoading}
-              error={error}
-            />
-          ) : !isWebglAvailable && webglDiagnostic ? (
-            <WebGLErrorFallback
-              diagnostic={webglDiagnostic}
-              inspectionReport={inspectionReport}
-              onRetry={() => setWebglDiagnostic(probeWebGLSupport())}
-            />
-          ) : inspectionReport ? (
-            <Viewport3D
-              report={inspectionReport}
-              pdfFile={selectedFile}
-              activeLayer={activeLayer}
-              visibleLayers={visibleLayers}
-              onSelectLayer={setActiveLayer}
-              zoomLevel={zoomLevel}
-              cameraResetTrigger={cameraResetTrigger}
-              spatialTool={spatialTool}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-slate-500">
-              <div className="flex items-center gap-2.5">
-                <div className="w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs font-medium tracking-wide">Inspecting Document Structure...</span>
+        {/* Inner Box: Large Translucent Frosted Glass Sheet & 3D Stage (Matches Reference Image) */}
+        <div className="w-[82%] max-w-[1240px] h-[76%] max-h-[720px] spatial-backdrop-sheet rounded-[32px] relative overflow-hidden shadow-2xl z-10 flex items-center justify-center">
+          <div className="w-full h-full relative">
+            {!selectedFile ? (
+              <UploadZone
+                onFileSelected={handleFileSelected}
+                isLoading={isLoading}
+                error={error}
+              />
+            ) : !isWebglAvailable && webglDiagnostic ? (
+              <WebGLErrorFallback
+                diagnostic={webglDiagnostic}
+                inspectionReport={inspectionReport}
+                onRetry={() => setWebglDiagnostic(probeWebGLSupport())}
+              />
+            ) : inspectionReport ? (
+              <Viewport3D
+                report={inspectionReport}
+                pdfFile={selectedFile}
+                activeLayer={activeLayer}
+                visibleLayers={visibleLayers}
+                onSelectLayer={setActiveLayer}
+                zoomLevel={zoomLevel}
+                cameraResetTrigger={cameraResetTrigger}
+                spatialTool={spatialTool}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-slate-500">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs font-medium tracking-wide">Inspecting Document Structure...</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Right: Floating Frosted Glass Evidence Instrument Panel (Aligned with Left Dock) */}
