@@ -1,0 +1,434 @@
+[
+  {
+    "case_name": "standard",
+    "rotation": 0,
+    "file_path": "/home/souhit/Documents/Research/IS/securepdf/tests/cross_renderer/generated_pdfs/test_standard_rot0.pdf",
+    "filename": "test_standard_rot0.pdf",
+    "mediabox": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "cropbox": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "page_rect": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "raw_rect": [
+      100.0,
+      150.0,
+      250.0,
+      200.0
+    ],
+    "annot_rect": [
+      99.0,
+      591.0,
+      251.0,
+      643.0
+    ],
+    "corners": {
+      "TL": [
+        100.0,
+        200.0
+      ],
+      "TR": [
+        250.0,
+        200.0
+      ],
+      "BR": [
+        250.0,
+        150.0
+      ],
+      "BL": [
+        100.0,
+        150.0
+      ]
+    }
+  },
+  {
+    "case_name": "standard",
+    "rotation": 90,
+    "file_path": "/home/souhit/Documents/Research/IS/securepdf/tests/cross_renderer/generated_pdfs/test_standard_rot90.pdf",
+    "filename": "test_standard_rot90.pdf",
+    "mediabox": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "cropbox": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "page_rect": [
+      0.0,
+      0.0,
+      792.0,
+      612.0
+    ],
+    "raw_rect": [
+      100.0,
+      150.0,
+      250.0,
+      200.0
+    ],
+    "annot_rect": [
+      99.0,
+      591.0,
+      251.0,
+      643.0
+    ],
+    "corners": {
+      "TL": [
+        100.0,
+        200.0
+      ],
+      "TR": [
+        250.0,
+        200.0
+      ],
+      "BR": [
+        250.0,
+        150.0
+      ],
+      "BL": [
+        100.0,
+        150.0
+      ]
+    }
+  },
+  {
+    "case_name": "standard",
+    "rotation": 180,
+    "file_path": "/home/souhit/Documents/Research/IS/securepdf/tests/cross_renderer/generated_pdfs/test_standard_rot180.pdf",
+    "filename": "test_standard_rot180.pdf",
+    "mediabox": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "cropbox": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "page_rect": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "raw_rect": [
+      100.0,
+      150.0,
+      250.0,
+      200.0
+    ],
+    "annot_rect": [
+      99.0,
+      591.0,
+      251.0,
+      643.0
+    ],
+    "corners": {
+      "TL": [
+        100.0,
+        200.0
+      ],
+      "TR": [
+        250.0,
+        200.0
+      ],
+      "BR": [
+        250.0,
+        150.0
+      ],
+      "BL": [
+        100.0,
+        150.0
+      ]
+    }
+  },
+  {
+    "case_name": "standard",
+    "rotation": 270,
+    "file_path": "/home/souhit/Documents/Research/IS/securepdf/tests/cross_renderer/generated_pdfs/test_standard_rot270.pdf",
+    "filename": "test_standard_rot270.pdf",
+    "mediabox": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "cropbox": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "page_rect": [
+      0.0,
+      0.0,
+      792.0,
+      612.0
+    ],
+    "raw_rect": [
+      100.0,
+      150.0,
+      250.0,
+      200.0
+    ],
+    "annot_rect": [
+      99.0,
+      591.0,
+      251.0,
+      643.0
+    ],
+    "corners": {
+      "TL": [
+        100.0,
+        200.0
+      ],
+      "TR": [
+        250.0,
+        200.0
+      ],
+      "BR": [
+        250.0,
+        150.0
+      ],
+      "BL": [
+        100.0,
+        150.0
+      ]
+    }
+  },
+  {
+    "case_name": "offset",
+    "rotation": 0,
+    "file_path": "/home/souhit/Documents/Research/IS/securepdf/tests/cross_renderer/generated_pdfs/test_offset_rot0.pdf",
+    "filename": "test_offset_rot0.pdf",
+    "mediabox": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "cropbox": [
+      50.0,
+      40.0,
+      550.0,
+      750.0
+    ],
+    "page_rect": [
+      0.0,
+      0.0,
+      500.0,
+      710.0
+    ],
+    "raw_rect": [
+      150.0,
+      190.0,
+      300.0,
+      240.0
+    ],
+    "annot_rect": [
+      99.0,
+      509.0,
+      251.0,
+      561.0
+    ],
+    "corners": {
+      "TL": [
+        150.0,
+        240.0
+      ],
+      "TR": [
+        300.0,
+        240.0
+      ],
+      "BR": [
+        300.0,
+        190.0
+      ],
+      "BL": [
+        150.0,
+        190.0
+      ]
+    }
+  },
+  {
+    "case_name": "offset",
+    "rotation": 90,
+    "file_path": "/home/souhit/Documents/Research/IS/securepdf/tests/cross_renderer/generated_pdfs/test_offset_rot90.pdf",
+    "filename": "test_offset_rot90.pdf",
+    "mediabox": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "cropbox": [
+      50.0,
+      40.0,
+      550.0,
+      750.0
+    ],
+    "page_rect": [
+      0.0,
+      0.0,
+      710.0,
+      500.0
+    ],
+    "raw_rect": [
+      150.0,
+      190.0,
+      300.0,
+      240.0
+    ],
+    "annot_rect": [
+      99.0,
+      509.0,
+      251.0,
+      561.0
+    ],
+    "corners": {
+      "TL": [
+        150.0,
+        240.0
+      ],
+      "TR": [
+        300.0,
+        240.0
+      ],
+      "BR": [
+        300.0,
+        190.0
+      ],
+      "BL": [
+        150.0,
+        190.0
+      ]
+    }
+  },
+  {
+    "case_name": "offset",
+    "rotation": 180,
+    "file_path": "/home/souhit/Documents/Research/IS/securepdf/tests/cross_renderer/generated_pdfs/test_offset_rot180.pdf",
+    "filename": "test_offset_rot180.pdf",
+    "mediabox": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "cropbox": [
+      50.0,
+      40.0,
+      550.0,
+      750.0
+    ],
+    "page_rect": [
+      0.0,
+      0.0,
+      500.0,
+      710.0
+    ],
+    "raw_rect": [
+      150.0,
+      190.0,
+      300.0,
+      240.0
+    ],
+    "annot_rect": [
+      99.0,
+      509.0,
+      251.0,
+      561.0
+    ],
+    "corners": {
+      "TL": [
+        150.0,
+        240.0
+      ],
+      "TR": [
+        300.0,
+        240.0
+      ],
+      "BR": [
+        300.0,
+        190.0
+      ],
+      "BL": [
+        150.0,
+        190.0
+      ]
+    }
+  },
+  {
+    "case_name": "offset",
+    "rotation": 270,
+    "file_path": "/home/souhit/Documents/Research/IS/securepdf/tests/cross_renderer/generated_pdfs/test_offset_rot270.pdf",
+    "filename": "test_offset_rot270.pdf",
+    "mediabox": [
+      0.0,
+      0.0,
+      612.0,
+      792.0
+    ],
+    "cropbox": [
+      50.0,
+      40.0,
+      550.0,
+      750.0
+    ],
+    "page_rect": [
+      0.0,
+      0.0,
+      710.0,
+      500.0
+    ],
+    "raw_rect": [
+      150.0,
+      190.0,
+      300.0,
+      240.0
+    ],
+    "annot_rect": [
+      99.0,
+      509.0,
+      251.0,
+      561.0
+    ],
+    "corners": {
+      "TL": [
+        150.0,
+        240.0
+      ],
+      "TR": [
+        300.0,
+        240.0
+      ],
+      "BR": [
+        300.0,
+        190.0
+      ],
+      "BL": [
+        150.0,
+        190.0
+      ]
+    }
+  }
+]
