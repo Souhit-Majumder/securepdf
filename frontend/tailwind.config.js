@@ -5,10 +5,10 @@ export default {
     extend: {
       colors: {
         glass: {
-          surface: "rgba(15, 23, 42, 0.65)",
-          border: "rgba(255, 255, 255, 0.12)",
-          highlight: "rgba(255, 255, 255, 0.05)",
-          glow: "rgba(56, 189, 248, 0.15)",
+          surface: "rgba(255, 255, 255, 0.75)",
+          border: "rgba(255, 255, 255, 0.85)",
+          highlight: "rgba(255, 255, 255, 0.95)",
+          glow: "rgba(2, 132, 199, 0.12)",
         },
       },
     },

@@ -6,7 +6,7 @@ import {
 } from "../types/inspection";
 import { mapPyMuPdfToPdfJs, mapViewportTo3DPlane } from "../utils/coordinateMapping";
 
-// Set up local PDF.js worker using workerSrc
+// Configure local PDF.js worker
 if (typeof window !== "undefined") {
   pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -26,6 +26,7 @@ interface Viewport3DProps {
   onSelectLayer: (layerIndex: number) => void;
   zoomLevel: number;
   cameraResetTrigger: number;
+  spatialTool?: "orbit" | "pan";
 }
 
 export const Viewport3D: React.FC<Viewport3DProps> = ({
@@ -36,6 +37,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   onSelectLayer,
   zoomLevel,
   cameraResetTrigger,
+  spatialTool = "orbit",
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -44,15 +46,13 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const paperMeshRef = useRef<THREE.Mesh | null>(null);
   const annotationGroupRef = useRef<THREE.Group | null>(null);
 
-  const selectedAnnotationIndex = 0;
-
-  // Mouse interaction state for orbital controls
+  // Mouse interaction state for orbital controls (Strictly stable, zero drift)
   const isDragging = useRef(false);
   const previousMousePosition = useRef({ x: 0, y: 0 });
-  const targetRotation = useRef({ x: 0.28, y: -0.22 }); // Elegant initial perspective tilt
-  const currentRotation = useRef({ x: 0.28, y: -0.22 });
+  const targetRotation = useRef({ x: 0.0, y: 0.0 }); // Deterministic upright initial view
+  const currentRotation = useRef({ x: 0.0, y: 0.0 });
 
-  // 1. Initialize Three.js Scene, Lighting, and Camera
+  // 1. Initialize Three.js Scene, Paper Centerpiece, and Camera
   useEffect(() => {
     if (!containerRef.current) return;
     const container = containerRef.current;
@@ -62,77 +62,118 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // Atmospheric cool-blue ambient environment
-    scene.background = new THREE.Color("#070b12");
-    scene.fog = new THREE.FogExp2(0x070b12, 0.08);
+    // Use transparent background so luminous pearl daylight CSS gradients transmit through canvas
+    scene.background = null;
 
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    camera.position.set(0, 0.2, 5.2);
+    // Perspective camera positioned slightly to the left (-0.15) to balance between left dock and right inspector
+    const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 100);
+    camera.position.set(-0.15, 0.0, 4.2);
+    camera.lookAt(-0.15, 0.0, 0.0);
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: "high-performance",
+    });
     renderer.setSize(width, height);
+    renderer.setClearColor(0x000000, 0); // Transparent canvas
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = false;
     rendererRef.current = renderer;
 
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
 
-    // Premium subtle lighting
-    const ambientLight = new THREE.AmbientLight(0xdbeafe, 0.85);
+    // Soft ambient illumination for the general 3D scene
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
-    keyLight.position.set(4, 6, 6);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 1024;
-    keyLight.shadow.mapSize.height = 1024;
-    scene.add(keyLight);
-
-    const rimLight = new THREE.PointLight(0x38bdf8, 2.2, 10);
-    rimLight.position.set(-4, -2, 2);
-    scene.add(rimLight);
-
-    const accentLight = new THREE.PointLight(0x818cf8, 1.8, 8);
-    accentLight.position.set(3, 4, 2);
-    scene.add(accentLight);
-
-    // Create the centerpiece Paper Sheet
-    const paperWidth = 2.2;
-    const paperHeight = 2.95; // ~A4 / US Letter aspect ratio
-    const paperGeometry = new THREE.BoxGeometry(paperWidth, paperHeight, 0.02);
-
-    const defaultMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf8fafc,
-      roughness: 0.45,
-      metalness: 0.05,
+    // Soft studio ambient backdrop plane behind document (z = -0.45)
+    // Subtle pale ice-blue / silver halo that adds luminous daylight depth
+    const studioCanvas = document.createElement("canvas");
+    studioCanvas.width = 512;
+    studioCanvas.height = 512;
+    const studioCtx = studioCanvas.getContext("2d");
+    if (studioCtx) {
+      const grad = studioCtx.createRadialGradient(256, 256, 30, 256, 256, 250);
+      grad.addColorStop(0, "rgba(224, 242, 254, 0.50)");
+      grad.addColorStop(0.5, "rgba(241, 245, 249, 0.25)");
+      grad.addColorStop(1, "rgba(255, 255, 255, 0)");
+      studioCtx.fillStyle = grad;
+      studioCtx.fillRect(0, 0, 512, 512);
+    }
+    const studioTex = new THREE.CanvasTexture(studioCanvas);
+    const studioMat = new THREE.MeshBasicMaterial({
+      map: studioTex,
+      transparent: true,
+      depthWrite: false,
     });
+    const studioMesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 8), studioMat);
+    studioMesh.position.set(-0.15, 0, -0.45);
+    scene.add(studioMesh);
+
+    // Soft daylight contact shadow underneath floating paper
+    const shadowCanvas = document.createElement("canvas");
+    shadowCanvas.width = 256;
+    shadowCanvas.height = 256;
+    const sCtx = shadowCanvas.getContext("2d");
+    if (sCtx) {
+      const grad = sCtx.createRadialGradient(128, 128, 25, 128, 128, 125);
+      grad.addColorStop(0, "rgba(15, 23, 42, 0.16)");
+      grad.addColorStop(0.4, "rgba(15, 23, 42, 0.05)");
+      grad.addColorStop(1, "rgba(15, 23, 42, 0)");
+      sCtx.fillStyle = grad;
+      sCtx.fillRect(0, 0, 256, 256);
+    }
+    const shadowTex = new THREE.CanvasTexture(shadowCanvas);
+    const shadowMat = new THREE.MeshBasicMaterial({
+      map: shadowTex,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+    });
+    const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 4.4), shadowMat);
+    shadowPlane.position.set(-0.15, -0.05, -0.08);
+    scene.add(shadowPlane);
+
+    // Centerpiece Paper Sheet
+    // Sized to standard aspect ratio, completely flat, opaque matte white
+    const paperWidth = 2.65;
+    const paperHeight = 3.55;
+    const paperThickness = 0.015;
+    const paperGeometry = new THREE.BoxGeometry(paperWidth, paperHeight, paperThickness);
+
+    // Default placeholder white matte paper
+    const defaultMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
     const paperMesh = new THREE.Mesh(paperGeometry, defaultMaterial);
-    paperMesh.castShadow = true;
-    paperMesh.receiveShadow = true;
+    paperMesh.position.set(-0.15, 0.0, 0.0);
     scene.add(paperMesh);
     paperMeshRef.current = paperMesh;
 
-    // Annotations group anchored directly to the paper mesh
+    // Annotation group anchored directly to the paper face
     const annotationGroup = new THREE.Group();
     paperMesh.add(annotationGroup);
     annotationGroupRef.current = annotationGroup;
 
-    // Animation Loop
+    // Animation Loop with precise convergence (zero drift after reaching target)
     let animationFrameId: number;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
 
-      // Smooth damping interpolation for rotation
-      currentRotation.current.x += (targetRotation.current.x - currentRotation.current.x) * 0.08;
-      currentRotation.current.y += (targetRotation.current.y - currentRotation.current.y) * 0.08;
+      const diffX = targetRotation.current.x - currentRotation.current.x;
+      const diffY = targetRotation.current.y - currentRotation.current.y;
 
-      if (paperMeshRef.current) {
-        paperMeshRef.current.rotation.x = currentRotation.current.x;
-        paperMeshRef.current.rotation.y = currentRotation.current.y;
+      // Only update rotation when there is active user movement
+      if (Math.abs(diffX) > 0.0001 || Math.abs(diffY) > 0.0001) {
+        currentRotation.current.x += diffX * 0.12;
+        currentRotation.current.y += diffY * 0.12;
+
+        if (paperMeshRef.current) {
+          paperMeshRef.current.rotation.x = currentRotation.current.x;
+          paperMeshRef.current.rotation.y = currentRotation.current.y;
+        }
       }
 
       renderer.render(scene, camera);
@@ -159,20 +200,27 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   // 2. Camera zoom handling
   useEffect(() => {
     if (cameraRef.current) {
-      const baseDistance = 5.2;
+      const baseDistance = 4.2;
       const targetZ = baseDistance / (zoomLevel / 100);
-      cameraRef.current.position.z = THREE.MathUtils.clamp(targetZ, 2.0, 10.0);
+      cameraRef.current.position.z = THREE.MathUtils.clamp(targetZ, 1.8, 8.0);
     }
   }, [zoomLevel]);
 
-  // 3. Reset camera view trigger
+  // 3. Reset camera view trigger (restores exact deterministic upright front-facing view)
   useEffect(() => {
     if (cameraResetTrigger > 0) {
-      targetRotation.current = { x: 0.28, y: -0.22 };
+      targetRotation.current = { x: 0.0, y: 0.0 };
+      currentRotation.current = { x: 0.0, y: 0.0 };
+      if (paperMeshRef.current) {
+        paperMeshRef.current.rotation.set(0, 0, 0);
+      }
+      if (cameraRef.current) {
+        cameraRef.current.position.set(-0.15, 0.0, 4.2);
+      }
     }
   }, [cameraResetTrigger]);
 
-  // 4. Client-side PDF.js rendering to Three.js Canvas Texture
+  // 4. Client-side PDF.js rendering to Three.js Canvas Texture (Crisp, flat, matte paper)
   useEffect(() => {
     if (!pdfFile || !paperMeshRef.current) return;
 
@@ -185,8 +233,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         const pdfDoc = await loadingTask.promise;
         const page = await pdfDoc.getPage(1);
 
-        // Render at high resolution for crisp, legible text
-        const renderScale = 2.0;
+        // High resolution rendering for sharp document text legibility
+        const renderScale = 2.4;
         const viewport = page.getViewport({ scale: renderScale, rotation: page.rotate });
 
         const canvas = document.createElement("canvas");
@@ -195,6 +243,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         const ctx = canvas.getContext("2d");
 
         if (ctx) {
+          // Fill canvas with pure white background before PDF page render
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
           await page.render({ canvasContext: ctx, viewport }).promise;
           if (isCancelled) return;
 
@@ -204,20 +256,27 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           texture.magFilter = THREE.LinearFilter;
 
           if (paperMeshRef.current) {
-            // Apply texture to front face, clean dark material to edges/back
-            const materials = [
-              new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.8 }),
-              new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.8 }),
-              new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.8 }),
-              new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.8 }),
-              new THREE.MeshStandardMaterial({ map: texture, roughness: 0.35, metalness: 0.05 }), // Front
-              new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.8 }), // Back
+            // Unlit MeshBasicMaterial: strictly preserves original PDF colors, contrast,
+            // with zero artificial gradients, specular highlights, or diagonal shading
+            const edgeMat = new THREE.MeshBasicMaterial({ color: 0xcbd5e1 });
+            const backMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const frontMat = new THREE.MeshBasicMaterial({
+              map: texture,
+              toneMapped: false,
+            });
+
+            paperMeshRef.current.material = [
+              edgeMat, // Right
+              edgeMat, // Left
+              edgeMat, // Top
+              edgeMat, // Bottom
+              frontMat, // Front
+              backMat,  // Back
             ];
-            paperMeshRef.current.material = materials;
           }
         }
       } catch (err) {
-        console.warn("Local PDF.js preview rendering failed; using stylized mesh:", err);
+        console.warn("Local PDF.js preview rendering failed; using default paper mesh:", err);
       }
     };
 
@@ -240,16 +299,14 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     const pageDim = report.page_dimensions[0];
     if (!l2Carrier || !l2Carrier.annotation_locations.length || !pageDim) return;
 
-    const paperWidth = 2.2;
-    const paperHeight = 2.95;
+    const paperWidth = 2.65;
+    const paperHeight = 3.55;
 
-    // Use page dimensions from PDF.js coordinate converter
     const mockViewport = {
       width: pageDim.width,
       height: pageDim.height,
       rotation: pageDim.rotation,
       convertToViewportPoint: (x: number, y: number) => {
-        // Standard PDF.js transform emulation for 0 degrees
         return [x - pageDim.cropbox[0], pageDim.cropbox[3] - y] as [number, number];
       },
       convertToViewportRectangle: (rect: [number, number, number, number]) => {
@@ -262,42 +319,42 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       },
     };
 
-    l2Carrier.annotation_locations.forEach((annot, index) => {
+    l2Carrier.annotation_locations.forEach((annot) => {
       const mapped = mapPyMuPdfToPdfJs(annot.rect, pageDim.cropbox, mockViewport);
       const planeBox = mapViewportTo3DPlane(mapped, pageDim.width, pageDim.height, paperWidth, paperHeight);
 
-      // Create glowing cyan translucent box
       const boxWidth = Math.max(planeBox.size[0], 0.35);
       const boxHeight = Math.max(planeBox.size[1], 0.15);
 
       const boxGeo = new THREE.PlaneGeometry(boxWidth, boxHeight);
       const boxMat = new THREE.MeshBasicMaterial({
-        color: 0x38bdf8,
+        color: 0x0284c7, // sky-600 for clear visibility on white paper
         transparent: true,
-        opacity: selectedAnnotationIndex === index ? 0.35 : 0.18,
+        opacity: activeLayer === 1 ? 0.16 : 0.08,
         side: THREE.DoubleSide,
         depthWrite: false,
       });
 
       const boxMesh = new THREE.Mesh(boxGeo, boxMat);
-      boxMesh.position.set(planeBox.center[0], planeBox.center[1], 0.015);
+      boxMesh.position.set(planeBox.center[0], planeBox.center[1], 0.012);
       group.add(boxMesh);
 
-      // Delicate cyan luminous wireframe outline
+      // Fine cyan outline
       const edges = new THREE.EdgesGeometry(boxGeo);
       const lineMat = new THREE.LineBasicMaterial({
-        color: 0x38bdf8,
-        linewidth: 2,
+        color: 0x0284c7,
+        linewidth: 1.5,
         transparent: true,
-        opacity: 0.9,
+        opacity: activeLayer === 1 ? 0.88 : 0.55,
       });
       const wireframe = new THREE.LineSegments(edges, lineMat);
       boxMesh.add(wireframe);
     });
-  }, [report, visibleLayers.annotations, selectedAnnotationIndex]);
+  }, [report, visibleLayers.annotations, activeLayer]);
 
-  // Mouse drag handlers for smooth perspective orbit
+  // Deliberate user drag handlers for camera orbit/pan
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
     isDragging.current = true;
     previousMousePosition.current = { x: e.clientX, y: e.clientY };
   };
@@ -307,12 +364,17 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     const deltaX = e.clientX - previousMousePosition.current.x;
     const deltaY = e.clientY - previousMousePosition.current.y;
 
-    targetRotation.current.y += deltaX * 0.006;
-    targetRotation.current.x += deltaY * 0.006;
+    if (spatialTool === "orbit") {
+      targetRotation.current.y += deltaX * 0.004;
+      targetRotation.current.x += deltaY * 0.004;
 
-    // Clamp vertical tilt to keep document facing camera
-    targetRotation.current.x = THREE.MathUtils.clamp(targetRotation.current.x, -0.6, 0.8);
-    targetRotation.current.y = THREE.MathUtils.clamp(targetRotation.current.y, -1.0, 1.0);
+      // Restrained angle limits to prevent disorienting flip
+      targetRotation.current.x = THREE.MathUtils.clamp(targetRotation.current.x, -0.4, 0.55);
+      targetRotation.current.y = THREE.MathUtils.clamp(targetRotation.current.y, -0.7, 0.7);
+    } else if (spatialTool === "pan" && cameraRef.current) {
+      cameraRef.current.position.x -= deltaX * 0.003;
+      cameraRef.current.position.y += deltaY * 0.003;
+    }
 
     previousMousePosition.current = { x: e.clientX, y: e.clientY };
   };
@@ -321,13 +383,16 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     isDragging.current = false;
   };
 
-  // Find sample Layer 3 modulation for the contextual magnification lens
+  // Carrier data references
+  const l1Carrier = report.carriers.find((c) => c.carrier_name === "Layer 1 (Catalog)");
   const l3Carrier = report.carriers.find((c) => c.carrier_name === "Layer 3 (Stego Kerning)");
   const l3Sample = l3Carrier?.content_stream_locations[0] || null;
 
   return (
     <div
-      className="relative w-full h-full cursor-grab active:cursor-grabbing overflow-hidden select-none"
+      className={`relative w-full h-full overflow-hidden select-none ${
+        spatialTool === "orbit" ? "cursor-grab active:cursor-grabbing" : "cursor-move"
+      }`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -336,76 +401,118 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       {/* Three.js Canvas Container */}
       <div ref={containerRef} className="w-full h-full" />
 
-      {/* ---------------- Layer 1: Floating Catalog Beacon Callout ---------------- */}
+      {/* SVG Leader Lines for Spatial Grounding (Clean, non-decorative, restrained) */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
+        {/* Layer 1 Leader line from Catalog Capsule to Document Header */}
+        {visibleLayers.catalog && (
+          <g className="transition-opacity duration-300">
+            <line
+              x1="30%"
+              y1="22%"
+              x2="41%"
+              y2="25%"
+              stroke="rgba(2, 132, 199, 0.45)"
+              strokeWidth="1.2"
+              strokeDasharray="3 3"
+            />
+            <circle cx="41%" cy="25%" r="2.5" fill="#0284c7" />
+            <circle cx="41%" cy="25%" r="5" fill="none" stroke="rgba(2, 132, 199, 0.25)" strokeWidth="1" />
+          </g>
+        )}
+
+        {/* Layer 3 Leader line from Optical Lens to Word Gap (Only if evidence exists) */}
+        {visibleLayers.textStream && (
+          <g className="transition-opacity duration-300">
+            <line
+              x1="29%"
+              y1="66%"
+              x2="42%"
+              y2="54%"
+              stroke={l3Sample ? "rgba(2, 132, 199, 0.45)" : "rgba(148, 163, 184, 0.35)"}
+              strokeWidth="1.2"
+              strokeDasharray="3 3"
+            />
+            <circle
+              cx="42%"
+              cy="54%"
+              r="2.5"
+              fill={l3Sample ? "#0284c7" : "#94a3b8"}
+            />
+          </g>
+        )}
+      </svg>
+
+      {/* ---------------- Layer 1: Floating Suspended Catalog Capsule (Matches Reference Image) ---------------- */}
       {visibleLayers.catalog && (
         <div
-          onClick={() => onSelectLayer(0)}
-          className={`absolute top-[22%] left-[28%] -translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer group transition-all duration-300 hover:scale-105 ${
-            activeLayer === 0 ? "scale-105 ring-2 ring-sky-400/50 rounded-xl" : ""
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelectLayer(0);
+          }}
+          className={`absolute top-[16%] left-[24%] z-20 cursor-pointer group transition-all duration-200 ${
+            activeLayer === 0 ? "scale-[1.02]" : "hover:scale-[1.01]"
           }`}
         >
-          {/* Beacon pill */}
-          <div className="relative glass-panel rounded-xl px-4 py-3 flex items-center gap-3 border-sky-400/40 shadow-lg shadow-sky-500/10">
-            {/* Number badge */}
-            <div className="w-6 h-6 rounded-md bg-sky-500 text-[11px] font-bold text-slate-950 flex items-center justify-center shadow-md shadow-sky-400/30">
-              1
-            </div>
-
-            <div>
-              <div className="text-xs font-semibold text-slate-100 flex items-center gap-1.5 font-mono">
-                /SPDFPayload
-              </div>
-              <div className="text-[11px] text-slate-400">
-                Catalog Object Reference
-              </div>
-              <div className="text-[10px] text-sky-400/90 font-mono mt-0.5">
-                xref: {report.carriers[0]?.catalog_location?.catalog_xref ?? 12}
-              </div>
+          <div
+            className={`px-4 py-2 rounded-full transition-all duration-200 shadow-md ${
+              activeLayer === 0 ? "glass-dock-item-active" : "glass-catalog-node"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-[11.5px] font-medium text-slate-800 tracking-tight">
+                Capsule for <span className="font-mono font-semibold text-sky-900">/SPDFPayload</span>
+              </span>
+              {l1Carrier?.status === "STRUCTURALLY_DECODED" && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
+              )}
             </div>
           </div>
-
-          {/* Glowing connector anchor point */}
-          <div className="absolute left-1/2 -bottom-2 -translate-x-1/2 w-2 h-2 rounded-full bg-sky-400 shadow-md shadow-sky-400 animate-ping" />
         </div>
       )}
 
-      {/* ---------------- Layer 3: Contextual Magnification Lens ---------------- */}
+      {/* ---------------- Layer 3: True Optical Glass Inspection Lens (Matches Reference Image) ---------------- */}
       {visibleLayers.textStream && (
         <div
-          onClick={() => onSelectLayer(2)}
-          className={`absolute bottom-[28%] left-[26%] z-20 cursor-pointer group transition-all duration-300 hover:scale-105 ${
-            activeLayer === 2 ? "scale-105 ring-2 ring-indigo-400/50 rounded-full" : ""
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelectLayer(2);
+          }}
+          className={`absolute bottom-[18%] left-[28%] z-20 cursor-pointer group transition-all duration-200 ${
+            activeLayer === 2 ? "scale-[1.02]" : "hover:scale-[1.01]"
           }`}
         >
-          {/* Glass Lens Circle with realistic reflection highlights */}
-          <div className="relative w-44 h-44 rounded-full p-1 bg-gradient-to-br from-white/25 via-white/5 to-transparent shadow-2xl backdrop-blur-md border border-white/20 flex items-center justify-center">
-            {/* Inner refractive glass layer */}
-            <div className="w-full h-full rounded-full bg-slate-900/60 border border-sky-400/30 flex flex-col items-center justify-center p-3 text-center overflow-hidden relative shadow-inner">
-              <div className="text-[10px] uppercase tracking-wider text-sky-400 font-semibold mb-1">
-                Inter-word Kerning
-              </div>
+          {/* Circular Optical Glass Lens */}
+          <div className="relative w-36 h-36 rounded-full optical-glass-lens p-1 flex items-center justify-center">
+            {/* Delicate inner concentric measurement ring */}
+            <div className="absolute inset-2.5 rounded-full border border-sky-500/20 pointer-events-none" />
 
-              {/* Text gap visualization */}
-              <div className="flex items-center gap-1.5 font-serif text-sm text-slate-100 my-1 font-semibold">
-                <span>secure</span>
-                <span className="inline-block w-4 h-0.5 bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
-                <span>comm</span>
-              </div>
+            {/* Specular reflection highlight crescent (Matching Reference Image) */}
+            <div className="absolute top-2 left-5 right-5 h-7 rounded-full bg-gradient-to-b from-white/95 via-white/35 to-transparent pointer-events-none" />
 
-              {/* Displacement indicator */}
-              <div className="mt-1 font-mono text-xs text-sky-300 font-bold">
-                {l3Sample ? `${l3Sample.displacement} pt` : "-12.4 pt"}
-              </div>
-
-              <div className="text-[10px] text-slate-400 mt-0.5 font-mono">
-                bit: {l3Sample?.bit_value ?? (l3Carrier?.status === "STRUCTURALLY_DECODED" ? "1" : "none")}
+            {/* Central Precision Crosshair Caliper (Matching Reference Image) */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-10 h-10 relative flex items-center justify-center">
+                <div className="absolute w-full h-[1.2px] bg-slate-600/60" />
+                <div className="absolute h-full w-[1.2px] bg-slate-600/60" />
               </div>
             </div>
-          </div>
 
-          {/* Small callout label below lens */}
-          <div className="mt-2 glass-panel rounded-lg px-3 py-1.5 text-center text-[11px] text-slate-300 border-indigo-400/30 shadow-md">
-            Text Stream Modulation
+            {/* Honest Telemetry Overlay */}
+            <div className="absolute bottom-2.5 inset-x-2 text-center pointer-events-none">
+              {l3Sample ? (
+                <div className="text-[9.5px] font-mono font-bold text-sky-950 bg-white/70 backdrop-blur-xs rounded-full px-2 py-0.5 inline-block shadow-xs border border-white/80">
+                  {l3Sample.displacement} pt • bit {l3Sample.bit_value ?? "0"}
+                </div>
+              ) : l3Carrier?.status === "OBSERVED_SYNTAX" ? (
+                <div className="text-[9px] font-medium text-amber-950 bg-amber-500/15 backdrop-blur-xs rounded-full px-2 py-0.5 inline-block border border-amber-400/30">
+                  Typesetting TJ
+                </div>
+              ) : (
+                <div className="text-[9px] font-medium text-slate-700 bg-white/60 backdrop-blur-xs rounded-full px-2 py-0.5 inline-block border border-white/80">
+                  No Stego Preamble
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

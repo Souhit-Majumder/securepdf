@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Shield,
-  FileText,
   Upload,
   User,
   Box,
@@ -13,6 +12,7 @@ import {
   ZoomIn,
   ZoomOut,
   ChevronDown,
+  Lock,
 } from "lucide-react";
 import { InspectionResponseDTO, WebGLDiagnosticInfo } from "./types/inspection";
 import { probeWebGLSupport } from "./utils/webglCheck";
@@ -38,6 +38,7 @@ export const App: React.FC = () => {
   });
 
   // Spatial camera controls
+  const [spatialTool, setSpatialTool] = useState<"orbit" | "pan">("orbit");
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [cameraResetTrigger, setCameraResetTrigger] = useState<number>(0);
 
@@ -83,47 +84,45 @@ export const App: React.FC = () => {
     webglDiagnostic && (webglDiagnostic.webgl1_supported || webglDiagnostic.webgl2_supported);
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#070b12] text-slate-100 overflow-hidden relative">
-      {/* Background radial gradient glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[550px] bg-sky-950/20 blur-[140px] pointer-events-none rounded-full" />
-      <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[400px] bg-indigo-950/20 blur-[120px] pointer-events-none rounded-full" />
-
-      {/* ---------------- Top Glass Navigation Bar ---------------- */}
-      <header className="relative z-30 h-16 px-6 flex items-center justify-between border-b border-white/[0.06] glass-panel-subtle">
-        {/* Brand Logo */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl glass-panel-bright flex items-center justify-center text-sky-400 shadow-md shadow-sky-500/10">
-            <Shield className="w-5 h-5" />
+    <div className="flex flex-col h-screen w-screen spatial-bg text-slate-800 overflow-hidden relative font-sans">
+      {/* ---------------- Floating Top Glass Island Header (Matches Design Reference) ---------------- */}
+      <header className="absolute top-4 left-1/2 -translate-x-1/2 z-30 h-11 px-5 rounded-2xl glass-top-island flex items-center gap-4 shadow-xl pointer-events-auto">
+        {/* Brand Logo & Name */}
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md bg-sky-500/10 border border-sky-400/30 flex items-center justify-center text-sky-600 shadow-xs">
+            <Shield className="w-3.5 h-3.5" />
           </div>
-          <span className="font-semibold tracking-tight text-base text-slate-100">
+          <span className="font-semibold tracking-tight text-xs text-slate-900">
             SecurePDF
           </span>
-
-          {/* Document pill */}
-          {selectedFile && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 ml-3 rounded-lg glass-pill text-xs text-slate-300">
-              <FileText className="w-3.5 h-3.5 text-sky-400" />
-              <span className="truncate max-w-[200px] font-medium">
-                {selectedFile.name}
-              </span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-            </div>
-          )}
         </div>
 
-        {/* Status indicator in center */}
-        {inspectionReport && (
-          <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-pill border-emerald-500/20 text-xs font-medium text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            Inspection Complete
+        {/* Center File Pill */}
+        {selectedFile && (
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/70 border border-white/90 text-xs text-slate-800 shadow-xs">
+            <Lock className="w-3 h-3 text-sky-600" />
+            <span className="truncate max-w-[170px] font-medium text-[11px]">
+              {selectedFile.name}
+            </span>
+            <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
           </div>
         )}
 
-        {/* Right action controls */}
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 px-4 py-2 rounded-xl glass-btn text-xs font-medium text-slate-200 cursor-pointer">
-            <Upload className="w-3.5 h-3.5 text-sky-400" />
-            <span>Open PDF</span>
+        {/* Status Badge */}
+        {inspectionReport && (
+          <div className="hidden md:flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-400/35 text-xs font-semibold text-emerald-800 shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] tracking-tight">Inspection Complete</span>
+          </div>
+        )}
+
+        <div className="w-px h-3.5 bg-slate-300/60" />
+
+        {/* Right Action Controls */}
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl glass-btn text-xs font-medium text-slate-700 cursor-pointer">
+            <Upload className="w-3 h-3 text-sky-600" />
+            <span className="text-[11px]">Open PDF</span>
             <input
               type="file"
               accept=".pdf,application/pdf"
@@ -136,79 +135,100 @@ export const App: React.FC = () => {
             />
           </label>
 
-          <div className="w-8 h-8 rounded-full glass-panel flex items-center justify-center text-slate-400 border border-white/10">
-            <User className="w-4 h-4" />
+          <div className="w-6 h-6 rounded-full bg-white/60 border border-white/90 flex items-center justify-center text-slate-500 shadow-xs">
+            <User className="w-3 h-3" />
           </div>
         </div>
       </header>
 
-      {/* ---------------- Main Content Workspace ---------------- */}
-      <main className="flex-1 relative flex overflow-hidden">
-        {/* Left: Compact Layer Selector (Floating Glass Panel) */}
+      {/* ---------------- Main Forensic Workspace ---------------- */}
+      <main className="flex-1 w-full h-full relative overflow-hidden flex items-center justify-center">
+        {/* Large Translucent Frosted Glass Sheet (Architectural Stage from Reference Image) */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[82%] max-w-[1240px] h-[76%] max-h-[720px] spatial-backdrop-sheet rounded-[32px] pointer-events-none z-0" />
+
+        {/* Left: Floating Dark-Slate Frosted Glass Layer Selector Dock (Matches Reference Image) */}
         {inspectionReport && isWebglAvailable && (
-          <aside className="absolute top-6 left-6 z-20 w-52 glass-panel rounded-2xl p-3.5 flex flex-col gap-2 shadow-2xl">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 px-2 py-1">
+          <aside className="absolute top-24 left-8 z-20 w-44 glass-dock-dark rounded-2xl p-2.5 flex flex-col gap-1.5 shadow-2xl">
+            <div className="text-[8.5px] font-bold uppercase tracking-wider text-slate-400 px-2 py-0.5">
               Layers
             </div>
 
             {/* Layer 01: Catalog */}
             <button
               onClick={() => setActiveLayer(0)}
-              className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all duration-200 ${
+              className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-all duration-200 relative ${
                 activeLayer === 0
-                  ? "glass-panel-bright text-slate-100"
-                  : "hover:bg-white/[0.04] text-slate-400 hover:text-slate-200"
+                  ? "glass-dock-item-active text-white font-semibold"
+                  : "hover:bg-white/10 text-slate-300 hover:text-white"
               }`}
             >
-              <div className="w-6 h-6 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+              <div
+                className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 ${
+                  activeLayer === 0
+                    ? "bg-white/20 text-sky-300"
+                    : "bg-white/5 text-slate-400"
+                }`}
+              >
                 <Box className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-medium truncate">01 Catalog</div>
-                <div className="text-[10px] text-slate-400 truncate">Object references</div>
+                <div className="text-[11px] font-medium truncate">01 Catalog</div>
+                <div className="text-[8.5px] text-slate-400 truncate">Object references</div>
               </div>
             </button>
 
             {/* Layer 02: Annotations */}
             <button
               onClick={() => setActiveLayer(1)}
-              className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all duration-200 ${
+              className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-all duration-200 relative ${
                 activeLayer === 1
-                  ? "glass-panel-bright text-slate-100"
-                  : "hover:bg-white/[0.04] text-slate-400 hover:text-slate-200"
+                  ? "glass-dock-item-active text-white font-semibold"
+                  : "hover:bg-white/10 text-slate-300 hover:text-white"
               }`}
             >
-              <div className="w-6 h-6 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+              <div
+                className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 ${
+                  activeLayer === 1
+                    ? "bg-white/20 text-cyan-300"
+                    : "bg-white/5 text-slate-400"
+                }`}
+              >
                 <Layers className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-medium truncate">02 Annotations</div>
-                <div className="text-[10px] text-slate-400 truncate">Page annotations</div>
+                <div className="text-[11px] font-medium truncate">02 Annotations</div>
+                <div className="text-[8.5px] text-slate-400 truncate">Page annotations</div>
               </div>
             </button>
 
             {/* Layer 03: Text Stream */}
             <button
               onClick={() => setActiveLayer(2)}
-              className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all duration-200 ${
+              className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-all duration-200 relative ${
                 activeLayer === 2
-                  ? "glass-panel-bright text-slate-100"
-                  : "hover:bg-white/[0.04] text-slate-400 hover:text-slate-200"
+                  ? "glass-dock-item-active text-white font-semibold"
+                  : "hover:bg-white/10 text-slate-300 hover:text-white"
               }`}
             >
-              <div className="w-6 h-6 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+              <div
+                className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 ${
+                  activeLayer === 2
+                    ? "bg-white/20 text-indigo-300"
+                    : "bg-white/5 text-slate-400"
+                }`}
+              >
                 <Type className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-medium truncate">03 Text Stream</div>
-                <div className="text-[10px] text-slate-400 truncate">Text modulation</div>
+                <div className="text-[11px] font-medium truncate">03 Text Stream</div>
+                <div className="text-[8.5px] text-slate-400 truncate">Kerning modulation</div>
               </div>
             </button>
           </aside>
         )}
 
-        {/* Center: 3D Viewport or Fallback */}
-        <div className="flex-1 w-full h-full relative">
+        {/* Center: 3D Viewport or Fallback (PDF is 100% Frozen & Preserved) */}
+        <div className="flex-1 w-full h-full relative z-10">
           {!selectedFile ? (
             <UploadZone
               onFileSelected={handleFileSelected}
@@ -230,20 +250,21 @@ export const App: React.FC = () => {
               onSelectLayer={setActiveLayer}
               zoomLevel={zoomLevel}
               cameraResetTrigger={cameraResetTrigger}
+              spatialTool={spatialTool}
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-slate-400">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm">Inspecting Document Structure...</span>
+            <div className="flex items-center justify-center h-full text-slate-500">
+              <div className="flex items-center gap-2.5">
+                <div className="w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs font-medium tracking-wide">Inspecting Document Structure...</span>
               </div>
             </div>
           )}
         </div>
 
-        {/* Right: Floating Evidence Inspector */}
+        {/* Right: Floating Frosted Glass Evidence Instrument Panel (Aligned with Left Dock) */}
         {inspectionReport && isWebglAvailable && (
-          <aside className="absolute top-6 right-6 z-20">
+          <aside className="absolute top-24 right-8 z-20">
             <EvidencePanel
               report={inspectionReport}
               activeLayer={activeLayer}
@@ -252,96 +273,109 @@ export const App: React.FC = () => {
           </aside>
         )}
 
-        {/* ---------------- Bottom Floating Spatial Controls ---------------- */}
+        {/* ---------------- Bottom Floating Compact Optical-Glass Control Strip ---------------- */}
         {inspectionReport && isWebglAvailable && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-2 rounded-2xl glass-panel shadow-2xl">
+          <div className="absolute bottom-7 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-toolbar shadow-xl pointer-events-auto">
             {/* Spatial Mode Buttons */}
             <button
               title="Pan View"
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-white/[0.06] transition"
+              onClick={() => setSpatialTool("pan")}
+              className={`p-1.5 rounded-full transition ${
+                spatialTool === "pan"
+                  ? "text-sky-800 bg-sky-500/20 border border-sky-400/40"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/40"
+              }`}
             >
-              <Move className="w-4 h-4" />
+              <Move className="w-3.5 h-3.5" />
             </button>
 
             <button
               title="Orbit Perspective Tilt"
-              className="p-2 rounded-xl text-sky-400 bg-sky-500/10 border border-sky-500/20"
+              onClick={() => setSpatialTool("orbit")}
+              className={`p-1.5 rounded-full transition ${
+                spatialTool === "orbit"
+                  ? "text-sky-800 bg-sky-500/20 border border-sky-400/40"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/40"
+              }`}
             >
-              <Rotate3d className="w-4 h-4" />
+              <Rotate3d className="w-3.5 h-3.5" />
             </button>
 
             <button
               title="Reset View"
-              onClick={() => setCameraResetTrigger((c) => c + 1)}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-white/[0.06] transition"
+              onClick={() => {
+                setZoomLevel(100);
+                setCameraResetTrigger((c) => c + 1);
+              }}
+              className="p-1.5 rounded-full text-slate-600 hover:text-slate-900 hover:bg-white/40 transition"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5" />
             </button>
 
-            <div className="w-px h-5 bg-white/10 mx-1" />
+            <div className="w-px h-3.5 bg-slate-300/60 mx-0.5" />
 
             {/* Zoom Controls */}
-            <div className="flex items-center gap-1 text-xs text-slate-300 font-mono px-1">
+            <div className="flex items-center gap-0.5 text-[9.5px] text-slate-800 font-mono px-0.5">
               <button
                 title="Zoom Out"
                 onClick={() => setZoomLevel((z) => Math.max(50, z - 10))}
-                className="p-1.5 rounded-lg hover:bg-white/[0.06] transition"
+                className="p-0.5 rounded-full hover:bg-white/40 transition"
               >
-                <ZoomOut className="w-3.5 h-3.5" />
+                <ZoomOut className="w-3 h-3" />
               </button>
-              <span className="min-w-[42px] text-center font-medium">{zoomLevel}%</span>
+              <span className="min-w-[32px] text-center font-semibold">{zoomLevel}%</span>
               <button
                 title="Zoom In"
                 onClick={() => setZoomLevel((z) => Math.min(200, z + 10))}
-                className="p-1.5 rounded-lg hover:bg-white/[0.06] transition"
+                className="p-0.5 rounded-full hover:bg-white/40 transition"
               >
-                <ZoomIn className="w-3.5 h-3.5" />
+                <ZoomIn className="w-3 h-3" />
               </button>
             </div>
 
-            <div className="w-px h-5 bg-white/10 mx-1" />
+            <div className="w-px h-3.5 bg-slate-300/60 mx-0.5" />
 
             {/* Layer Visibility Toggles */}
             <button
-              title="Toggle Catalog Layer Beacon"
+              title="Toggle Layer 1 (Catalog)"
               onClick={() =>
                 setVisibleLayers((v) => ({ ...v, catalog: !v.catalog }))
               }
-              className={`p-2 rounded-xl transition ${
+              className={`px-2 py-0.5 rounded-full text-[9.5px] font-mono transition ${
                 visibleLayers.catalog
-                  ? "text-sky-400 bg-sky-500/10"
-                  : "text-slate-500 hover:text-slate-300"
+                  ? "text-sky-800 bg-sky-500/20 border border-sky-400/40 font-bold"
+                  : "text-slate-400 hover:text-slate-700 hover:bg-white/30"
               }`}
             >
-              <Box className="w-4 h-4" />
+              01
             </button>
 
             <button
-              title="Toggle Annotations Layer Boxes"
+              title="Toggle Layer 2 (Annotations)"
               onClick={() =>
                 setVisibleLayers((v) => ({ ...v, annotations: !v.annotations }))
               }
-              className={`p-2 rounded-xl transition ${
+              className={`px-2 py-0.5 rounded-full text-[9.5px] font-mono transition ${
                 visibleLayers.annotations
-                  ? "text-cyan-400 bg-cyan-500/10"
-                  : "text-slate-500 hover:text-slate-300"
+                  ? "text-cyan-800 bg-cyan-500/20 border border-cyan-400/40 font-bold"
+                  : "text-slate-400 hover:text-slate-700 hover:bg-white/30"
               }`}
             >
-              <Layers className="w-4 h-4" />
+              02
             </button>
 
             <button
-              title="Toggle Stego Kerning Lens"
+              title="Toggle Layer 3 (Text Stream)"
               onClick={() =>
                 setVisibleLayers((v) => ({ ...v, textStream: !v.textStream }))
               }
-              className={`p-2 rounded-xl transition ${
+              className={`px-2 py-0.5 rounded-full text-[9.5px] font-mono transition ${
                 visibleLayers.textStream
-                  ? "text-indigo-400 bg-indigo-500/10"
-                  : "text-slate-500 hover:text-slate-300"
+                  ? "text-indigo-800 bg-indigo-500/20 border border-indigo-400/40 font-bold"
+                  : "text-slate-400 hover:text-slate-700 hover:bg-white/30"
               }`}
             >
-              <Type className="w-4 h-4" />
+              03
             </button>
           </div>
         )}
