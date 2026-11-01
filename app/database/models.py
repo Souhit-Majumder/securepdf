@@ -22,3 +22,19 @@ class Fingerprint:
     nonce: str
     fingerprint: str
     created_at: str
+
+@dataclass
+class User:
+    id: int
+    email: str
+    username: str
+    password_hash: str
+    salt: str
+    created_at: str
+
+@dataclass
+class Session:
+    session_token: str
+    user_id: int
+    expires_at: str
+    created_at: str

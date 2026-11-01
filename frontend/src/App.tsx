@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Shield,
   Upload,
-  User,
   Box,
   Layers,
   Type,
@@ -24,6 +23,9 @@ import { UploadZone } from "./components/UploadZone";
 import { Viewport3D } from "./components/Viewport3D";
 import { EvidencePanel } from "./components/EvidencePanel";
 import { WebGLErrorFallback } from "./components/WebGLErrorFallback";
+import { UserDTO } from "./types/auth";
+import { AuthModal } from "./components/AuthModal";
+import { UserMenu } from "./components/UserMenu";
 
 export const App: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -55,6 +57,40 @@ export const App: React.FC = () => {
 
   // WebGL diagnostic probe state
   const [webglDiagnostic, setWebglDiagnostic] = useState<WebGLDiagnosticInfo | null>(null);
+
+  // Authentication state
+  const [currentUser, setCurrentUser] = useState<UserDTO | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"login" | "register">("login");
+
+  // Check existing session on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { credentials: "include" });
+        if (res.ok) {
+          const user: UserDTO = await res.json();
+          setCurrentUser(user);
+        }
+      } catch {
+        // Silently keep unauthenticated
+      }
+    };
+    checkAuth();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("Logout request error:", err);
+    } finally {
+      setCurrentUser(null);
+    }
+  };
 
   // Execute WebGL probe on mount
   useEffect(() => {
@@ -211,9 +247,14 @@ export const App: React.FC = () => {
             />
           </label>
 
-          <div className="w-6 h-6 rounded-full bg-white/60 border border-white/90 flex items-center justify-center text-slate-500 shadow-xs">
-            <User className="w-3 h-3" />
-          </div>
+          <UserMenu
+            user={currentUser}
+            onOpenAuth={(mode = "login") => {
+              setAuthModalMode(mode);
+              setIsAuthModalOpen(true);
+            }}
+            onLogout={handleLogout}
+          />
         </div>
       </header>
 
@@ -463,6 +504,17 @@ export const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        initialMode={authModalMode}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={(user) => {
+          setCurrentUser(user);
+          setIsAuthModalOpen(false);
+        }}
+      />
     </div>
   );
 };

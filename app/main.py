@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import documents, students, distribution, verification, inspection
+from app.api.routes import documents, students, distribution, verification, inspection, auth
 from app.database.database import init_db
 
 @asynccontextmanager
@@ -28,4 +28,5 @@ app.include_router(students.router, prefix="/students", tags=["Students"])
 app.include_router(distribution.router, prefix="/documents", tags=["Distribution"])
 app.include_router(verification.router, prefix="/verify", tags=["Verification"])
 app.include_router(inspection.router, prefix="/api/inspection", tags=["Inspection"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 
