@@ -126,57 +126,55 @@ class VerificationService:
                     l2_conflict = True
                     break
 
-        # Optional Layer 3 Steganographic Carrier Authentication
+        # Passive Layer 3 Steganographic Carrier Authentication
         has_l3 = False
         l3_result = None
-        stego_enabled = getattr(config, "ENABLE_STEGO_CARRIER", False)
-        if stego_enabled:
-            l3_extract_res = extract_layer3_with_timeout(pdf_path, cancel_event=cancel_event)
-            if l3_extract_res:
-                has_l3 = bool(l3_extract_res.get("frame_detected"))
-                if l3_extract_res.get("crc_valid") and l3_extract_res.get("payload"):
-                    p = l3_extract_res["payload"]
-                    doc_uid = p["document_uid"]
-                    rec_uid = p["recipient_uid"]
-                    nonce_bytes = p["nonce"]
-                    nonce_hex = nonce_bytes.hex()
-                    hmac_tag = p["hmac_tag"]
+        l3_extract_res = extract_layer3_with_timeout(pdf_path, cancel_event=cancel_event)
+        if l3_extract_res:
+            has_l3 = bool(l3_extract_res.get("frame_detected"))
+            if l3_extract_res.get("crc_valid") and l3_extract_res.get("payload"):
+                p = l3_extract_res["payload"]
+                doc_uid = p["document_uid"]
+                rec_uid = p["recipient_uid"]
+                nonce_bytes = p["nonce"]
+                nonce_hex = nonce_bytes.hex()
+                hmac_tag = p["hmac_tag"]
 
-                    # 1. Cryptographic HMAC verification under derived subkey
-                    subkey = derive_layer3_subkey(self.master_key)
-                    if verify_layer3_tag(subkey, doc_uid, rec_uid, nonce_bytes, hmac_tag):
-                        # 2. Database issuance binding check
-                        doc_record = self.repo.get_document_by_uid(doc_uid)
-                        if doc_record:
-                            fp_record = self.repo.get_fingerprint_by_doc_and_nonce(doc_record.id, nonce_hex)
-                            if fp_record:
-                                rec_record = self.repo.get_recipient_by_fingerprint_id(fp_record.id)
-                                if rec_record and rec_record.recipient_identifier == rec_uid:
-                                    rec_name = rec_record.recipient_name
-                                    rec_ident = rec_record.recipient_identifier
-                                    stu_name = rec_record.recipient_name
+                # 1. Cryptographic HMAC verification under derived subkey
+                subkey = derive_layer3_subkey(self.master_key)
+                if verify_layer3_tag(subkey, doc_uid, rec_uid, nonce_bytes, hmac_tag):
+                    # 2. Database issuance binding check
+                    doc_record = self.repo.get_document_by_uid(doc_uid)
+                    if doc_record:
+                        fp_record = self.repo.get_fingerprint_by_doc_and_nonce(doc_record.id, nonce_hex)
+                        if fp_record:
+                            rec_record = self.repo.get_recipient_by_fingerprint_id(fp_record.id)
+                            if rec_record and rec_record.recipient_identifier == rec_uid:
+                                rec_name = rec_record.recipient_name
+                                rec_ident = rec_record.recipient_identifier
+                                stu_name = rec_record.recipient_name
+                            else:
+                                student_record = self.repo.get_student_by_id(fp_record.student_id)
+                                if student_record and student_record.student_uid == rec_uid:
+                                    stu_name = student_record.name
+                                    rec_name = None
+                                    rec_ident = None
                                 else:
-                                    student_record = self.repo.get_student_by_id(fp_record.student_id)
-                                    if student_record and student_record.student_uid == rec_uid:
-                                        stu_name = student_record.name
-                                        rec_name = None
-                                        rec_ident = None
-                                    else:
-                                        stu_name = None
-                                        rec_name = None
-                                        rec_ident = None
+                                    stu_name = None
+                                    rec_name = None
+                                    rec_ident = None
 
-                                if stu_name is not None:
-                                    l3_result = {
-                                        "status": "VALID",
-                                        "document_uid": doc_uid,
-                                        "student_uid": rec_uid,
-                                        "student_name": stu_name,
-                                        "recipient_name": rec_name,
-                                        "recipient_identifier": rec_ident,
-                                        "nonce": nonce_hex,
-                                        "fingerprint": hmac_tag.hex(),
-                                    }
+                            if stu_name is not None:
+                                l3_result = {
+                                    "status": "VALID",
+                                    "document_uid": doc_uid,
+                                    "student_uid": rec_uid,
+                                    "student_name": stu_name,
+                                    "recipient_name": rec_name,
+                                    "recipient_identifier": rec_ident,
+                                    "nonce": nonce_hex,
+                                    "fingerprint": hmac_tag.hex(),
+                                }
 
         has_l1 = bool(l1_payload)
         has_l2 = len(l2_payloads) > 0
@@ -223,27 +221,24 @@ class VerificationService:
                 collector._l2_status = "NOT_FOUND"
 
             # Layer 3
-            if stego_enabled:
-                if l3_valid and l3_result:
-                    collector.record_layer3_result(
-                        status="VALID",
-                        signature_token=l3_result["fingerprint"],
-                        nonce_token=l3_result["nonce"],
-                        details={"document_uid": l3_result["document_uid"], "recipient_uid": l3_result["student_uid"]},
-                    )
-                elif has_l3:
-                    p = l3_extract_res.get("payload") if l3_extract_res else None
-                    sig_tok = p["hmac_tag"].hex() if (p and "hmac_tag" in p) else None
-                    nonce_tok = p["nonce"].hex() if (p and "nonce" in p) else None
-                    status_l3 = "STRUCTURALLY_DECODED" if (l3_extract_res and l3_extract_res.get("crc_valid")) else "INVALID"
-                    collector.record_layer3_result(
-                        status=status_l3,
-                        signature_token=sig_tok,
-                        nonce_token=nonce_tok,
-                        details={"frame_detected": True, "crc_valid": bool(l3_extract_res and l3_extract_res.get("crc_valid"))},
-                    )
-                else:
-                    collector.record_layer3_result(status="NOT_FOUND")
+            if l3_valid and l3_result:
+                collector.record_layer3_result(
+                    status="VALID",
+                    signature_token=l3_result["fingerprint"],
+                    nonce_token=l3_result["nonce"],
+                    details={"document_uid": l3_result["document_uid"], "recipient_uid": l3_result["student_uid"]},
+                )
+            elif has_l3:
+                p = l3_extract_res.get("payload") if l3_extract_res else None
+                sig_tok = p["hmac_tag"].hex() if (p and "hmac_tag" in p) else None
+                nonce_tok = p["nonce"].hex() if (p and "nonce" in p) else None
+                status_l3 = "STRUCTURALLY_DECODED" if (l3_extract_res and l3_extract_res.get("crc_valid")) else "INVALID"
+                collector.record_layer3_result(
+                    status=status_l3,
+                    signature_token=sig_tok,
+                    nonce_token=nonce_tok,
+                    details={"frame_detected": True, "crc_valid": bool(l3_extract_res and l3_extract_res.get("crc_valid"))},
+                )
             else:
                 collector.record_layer3_result(status="NOT_FOUND")
 

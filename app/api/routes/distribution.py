@@ -255,6 +255,8 @@ def _process_batch_generation(
         batch_dir.mkdir(parents=True, exist_ok=True)
 
         recipients = repo.get_batch_recipients(batch_id)
+        stego_enabled = getattr(config, "ENABLE_STEGO_CARRIER", False)
+
         for recipient in recipients:
             final_filename = f"rec_{recipient.id}.pdf"
             final_path = batch_dir / final_filename
@@ -266,11 +268,49 @@ def _process_batch_generation(
             if recipient.status == "GENERATED" and recipient.fingerprint_id is not None and is_file_valid:
                 continue
 
+            existing_fp = None
+            if recipient.fingerprint_id is not None:
+                existing_fp = repo.get_fingerprint_by_id(recipient.fingerprint_id)
+
+            # Reconciliation check: if final_path already exists on disk from an interrupted previous run
+            if is_file_valid and existing_fp is not None:
+                reconcile_res = service.verify_saved_pdf_carriers(
+                    str(final_path),
+                    doc.document_uid,
+                    recipient.recipient_identifier,
+                    existing_fp.nonce,
+                    existing_fp.fingerprint,
+                    stego_expected=stego_enabled,
+                )
+                if reconcile_res.is_valid:
+                    # final_path is already authentic and verified! Reconcile database update only:
+                    if recipient.generated_at and recipient.expires_at:
+                        gen_at = recipient.generated_at
+                        exp_at = recipient.expires_at
+                    else:
+                        now_utc = datetime.now(timezone.utc)
+                        gen_at = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+                        exp_at = (now_utc + timedelta(seconds=expiry_duration_seconds)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                    token = recipient.download_token or secrets.token_urlsafe(32)
+                    repo.update_recipient_status_generated(
+                        recipient_id=recipient.id,
+                        generated_at=gen_at,
+                        expires_at=exp_at,
+                        download_token=token,
+                    )
+                    continue
+
+            # Note: If existing final_path failed verification, do not delete it before a replacement
+            # has been generated and independently verified. Only then atomically replace it.
+            # If regeneration fails, preserve the existing artifact for investigation.
+            had_existing_final = final_path.exists()
+            promoted_this_attempt = False
+
             try:
-                # Check if recipient already has an existing valid fingerprint row
-                existing_fp = None
-                if recipient.fingerprint_id is not None:
-                    existing_fp = repo.get_fingerprint_by_id(recipient.fingerprint_id)
+                # Ensure stale temp_path from any prior aborted attempt is cleaned up
+                if temp_path.exists():
+                    temp_path.unlink(missing_ok=True)
 
                 if existing_fp is not None:
                     # Reuse existing cryptographic nonce and fingerprint to avoid corrupting or duplicating attribution
@@ -282,24 +322,45 @@ def _process_batch_generation(
                         doc.document_uid
                     )
 
-                # 1. Generate payload and embed to temporary file
-                service.embed_and_save_pdf(
+                # Stage 1: Generate payload and embed to temporary file
+                embed_stage = service.embed_and_save_pdf(
                     doc.document_uid,
                     recipient.recipient_identifier,
                     nonce,
                     fingerprint_hex,
                     str(input_pdf_path),
-                    str(temp_path)
+                    str(temp_path),
                 )
+
+                if not embed_stage.success or embed_stage.l3_status == "FAILED":
+                    raise RuntimeError(f"Embedding stage failed for recipient {recipient.id}: {embed_stage.error or 'L3 failure'}")
 
                 if not temp_path.exists() or temp_path.stat().st_size == 0:
                     raise RuntimeError(f"Temporary PDF generation produced an invalid file for recipient {recipient.id}")
 
-                # 2. Atomically place at final opaque path
-                temp_path.replace(final_path)
+                # Stage 2: Post-Serialization Output Verification on temp_path
+                stego_expected = (embed_stage.l3_status == "EMBEDDED")
+                stego_skipped_capacity = (embed_stage.l3_status == "SKIPPED_INSUFFICIENT_CAPACITY")
+                verify_result = service.verify_saved_pdf_carriers(
+                    str(temp_path),
+                    doc.document_uid,
+                    recipient.recipient_identifier,
+                    nonce,
+                    fingerprint_hex,
+                    stego_expected=stego_expected,
+                    stego_skipped_capacity=stego_skipped_capacity,
+                )
 
+                if not verify_result.is_valid:
+                    raise RuntimeError(f"Post-generation verification failed for recipient {recipient.id}: {verify_result.error or 'Carrier verification failed'}")
+
+                # 3. Atomically replace final opaque path (only now, after temp_path is 100% verified!)
+                temp_path.replace(final_path)
+                promoted_this_attempt = True
+
+                # 4. Commit database updates
                 if existing_fp is not None:
-                    # Regenerated missing/corrupted file: preserve existing attribution without duplicating fingerprints
+                    # Regenerated/re-verified file: preserve existing attribution without duplicating fingerprints
                     if recipient.generated_at and recipient.expires_at:
                         gen_at = recipient.generated_at
                         exp_at = recipient.expires_at
@@ -333,12 +394,20 @@ def _process_batch_generation(
                         expires_at=expires_at,
                         download_token=download_token
                     )
-            except Exception:
-                # If failure occurs, remove temp or final PDF so no orphan file remains
+            except Exception as e:
+                # Safe cleanup: only remove temporary artifacts owned by this attempt.
                 if temp_path.exists():
                     temp_path.unlink(missing_ok=True)
-                if final_path.exists():
+                # If fresh attempt promoted final_path but subsequent DB commit failed:
+                # remove the uncommitted orphan so no orphan file remains on disk.
+                # If final_path existed prior to this attempt, it is preserved for investigation.
+                if promoted_this_attempt and not had_existing_final and final_path.exists():
                     final_path.unlink(missing_ok=True)
+                logger.warning(
+                    "Batch recipient generation failed: batch_uid=%s, error_type=%s",
+                    safe_batch_uid,
+                    type(e).__name__,
+                )
                 repo.record_recipient_failure(recipient.id)
 
         repo.finalize_batch_generation_status(batch_id)
