@@ -55,3 +55,37 @@ class FingerprintService:
         doc.close()
         
         return fingerprint_hex
+
+    def generate_fingerprint_payload(self, student_uid: str, document_uid: str) -> tuple[str, str]:
+        """Generates cryptographic nonce and fingerprint hex."""
+        nonce = generate_nonce()
+        fingerprint_hex = generate_fingerprint(
+            master_key=self.master_key,
+            document_uid=document_uid,
+            student_uid=student_uid,
+            nonce=nonce
+        )
+        return nonce, fingerprint_hex
+
+    def embed_and_save_pdf(
+        self,
+        document_uid: str,
+        student_uid: str,
+        nonce: str,
+        fingerprint_hex: str,
+        input_pdf_path: str,
+        output_pdf_path: str
+    ) -> None:
+        """Embeds watermarks and saves to output path."""
+        doc = open_pdf(input_pdf_path)
+        embed_payload(
+            doc,
+            document_uid,
+            nonce,
+            fingerprint_hex,
+            student_uid=student_uid,
+            master_key=self.master_key,
+        )
+        save_pdf(doc, output_pdf_path)
+        doc.close()
+

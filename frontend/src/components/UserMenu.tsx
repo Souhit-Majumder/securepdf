@@ -3,14 +3,12 @@ import { User as UserIcon, LogOut, CheckCircle2, Loader2 } from "lucide-react";
 import { UserDTO } from "../types/auth";
 
 interface UserMenuProps {
-  user: UserDTO | null;
-  onOpenAuth: (mode?: "login" | "register") => void;
+  user: UserDTO;
   onLogout: () => Promise<void>;
 }
 
 export const UserMenu: React.FC<UserMenuProps> = ({
   user,
-  onOpenAuth,
   onLogout,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,14 +30,6 @@ export const UserMenu: React.FC<UserMenuProps> = ({
     };
   }, [isOpen]);
 
-  const handleButtonClick = () => {
-    if (!user) {
-      onOpenAuth("login");
-    } else {
-      setIsOpen((prev) => !prev);
-    }
-  };
-
   const handleSignOut = async () => {
     setIsLoggingOut(true);
     try {
@@ -54,13 +44,9 @@ export const UserMenu: React.FC<UserMenuProps> = ({
     <div className="relative" ref={menuRef}>
       {/* Header Button */}
       <button
-        onClick={handleButtonClick}
-        title={user ? `${user.username} (${user.email})` : "Sign In or Register"}
-        className={`w-7 h-7 rounded-full flex items-center justify-center transition shadow-xs cursor-pointer ${
-          user
-            ? "bg-sky-500/15 border border-sky-400/40 text-sky-700 hover:bg-sky-500/25"
-            : "bg-white/60 border border-white/90 text-slate-500 hover:text-slate-800 hover:bg-white/80"
-        }`}
+        onClick={() => setIsOpen((prev) => !prev)}
+        title={`${user.username} (${user.email})`}
+        className="w-7 h-7 rounded-full flex items-center justify-center transition shadow-xs cursor-pointer bg-sky-500/15 border border-sky-400/40 text-sky-700 hover:bg-sky-500/25"
       >
         <UserIcon className="w-3.5 h-3.5" />
       </button>

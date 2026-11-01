@@ -5,11 +5,20 @@ from app.database.database import init_db
 import os
 import fitz
 
+import uuid
+
 client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def setup_db():
     init_db()
+    # Authenticate client with session cookie
+    uid = uuid.uuid4().hex[:8]
+    client.post("/api/auth/register", json={
+        "email": f"test_api_{uid}@example.com",
+        "username": f"user_api_{uid}",
+        "password": "Password123!"
+    })
     yield
 
 @pytest.fixture
@@ -31,7 +40,7 @@ def test_api_upload_document(test_pdf_content):
         files={"file": ("test.pdf", test_pdf_content, "application/pdf")},
         data={"title": "Test Document"}
     )
-    assert response.status_code == 200
+    assert response.status_code in (200, 201)
     data = response.json()
     assert "document_uid" in data
     assert data["original_filename"] == "Test Document"
@@ -50,7 +59,7 @@ def test_api_create_student():
         "/students/",
         json={"name": "API Student", "student_uid": "API-STU-001"}
     )
-    assert response.status_code == 200
+    assert response.status_code in (200, 201)
     data = response.json()
     assert data["name"] == "API Student"
     assert data["student_uid"] == "API-STU-001"

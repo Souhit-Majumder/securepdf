@@ -6,7 +6,11 @@ from __future__ import annotations
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
-from app.api.dependencies import get_repository
+from app.api.dependencies import (
+    get_repository,
+    get_current_user_from_session,
+    SESSION_COOKIE_NAME,
+)
 from app.api.schemas.auth import (
     MessageResponse,
     UserLoginRequest,
@@ -26,46 +30,7 @@ from app.database.repository import Repository
 
 logger = logging.getLogger(__name__)
 
-SESSION_COOKIE_NAME = "securepdf_session"
-
 router = APIRouter()
-
-
-def get_current_user_from_session(
-    request: Request,
-    repo: Repository = Depends(get_repository)
-) -> User:
-    """Extract and validate the user session from the HttpOnly cookie."""
-    token = request.cookies.get(SESSION_COOKIE_NAME)
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required: No session cookie provided."
-        )
-
-    session = repo.get_session(token)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or terminated session."
-        )
-
-    if is_session_expired(session.expires_at):
-        repo.delete_session(token)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired. Please log in again."
-        )
-
-    user = repo.get_user_by_id(session.user_id)
-    if not user:
-        repo.delete_session(token)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User account associated with session no longer exists."
-        )
-
-    return user
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

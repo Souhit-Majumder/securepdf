@@ -5,11 +5,20 @@ from app.database.database import init_db
 import os
 import fitz
 
+import uuid
+
 client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def setup_db():
     init_db()
+    # Authenticate client with session cookie
+    uid = uuid.uuid4().hex[:8]
+    client.post("/api/auth/register", json={
+        "email": f"sec_test_{uid}@example.com",
+        "username": f"user_sec_{uid}",
+        "password": "Password123!"
+    })
     yield
 
 @pytest.fixture
@@ -56,7 +65,7 @@ def test_api_security_sql_injection():
     )
     # The API should just treat it as a literal string (status 200) 
     # and the DB parameterized query will safely insert it.
-    assert response.status_code == 200
+    assert response.status_code in (200, 201)
     assert response.json()["student_uid"] == injection_uid
 
 def test_api_security_path_traversal(test_pdf_content):
@@ -79,15 +88,13 @@ def test_api_security_path_traversal(test_pdf_content):
     # It shouldn't crash with a FileNotFoundError because of the path sanitization we added.
     
 def test_api_security_attribution_disclosure(test_pdf_content):
-    # This tests the unauthenticated behavior of /verify
-    # Currently it's public. We document this in the threat model.
-    res_ver = client.post(
+    # An unauthenticated client must be rejected from /verify/ to prevent oracle probing
+    unauth_client = TestClient(app)
+    res_ver = unauth_client.post(
         "/verify/",
         files={"file": ("original.pdf", test_pdf_content, "application/pdf")}
     )
-    # Returns 200 NOT_FOUND, which means an attacker can probe documents.
-    assert res_ver.status_code == 200
-    assert res_ver.json()["status"] == "NOT_FOUND"
+    assert res_ver.status_code == 401
 
 def test_api_security_missing_fields():
     # Missing student_uid

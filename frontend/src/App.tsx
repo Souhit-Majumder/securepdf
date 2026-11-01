@@ -12,6 +12,10 @@ import {
   ZoomOut,
   ChevronDown,
   Lock,
+  Users,
+  Loader2,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import {
   InspectionResponseDTO,
@@ -24,8 +28,11 @@ import { Viewport3D } from "./components/Viewport3D";
 import { EvidencePanel } from "./components/EvidencePanel";
 import { WebGLErrorFallback } from "./components/WebGLErrorFallback";
 import { UserDTO } from "./types/auth";
-import { AuthModal } from "./components/AuthModal";
+import { LoginPage } from "./pages/LoginPage";
+import { RegisterPage } from "./pages/RegisterPage";
+import { DistributionModal } from "./components/DistributionModal";
 import { UserMenu } from "./components/UserMenu";
+import { getSafeRedirect } from "./utils/safeRedirect";
 
 export const App: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -58,10 +65,16 @@ export const App: React.FC = () => {
   // WebGL diagnostic probe state
   const [webglDiagnostic, setWebglDiagnostic] = useState<WebGLDiagnosticInfo | null>(null);
 
-  // Authentication state
+  // Authentication & routing state
   const [currentUser, setCurrentUser] = useState<UserDTO | null>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<"login" | "register">("login");
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || "/");
+
+  // Distribution batch state
+  const [isDistributionModalOpen, setIsDistributionModalOpen] = useState(false);
+  const [activeDocumentUid, setActiveDocumentUid] = useState<string | null>(null);
+  const [isDistributing, setIsDistributing] = useState(false);
+  const [distributionError, setDistributionError] = useState<string | null>(null);
 
   // Check existing session on mount
   useEffect(() => {
@@ -71,13 +84,47 @@ export const App: React.FC = () => {
         if (res.ok) {
           const user: UserDTO = await res.json();
           setCurrentUser(user);
+        } else {
+          setCurrentUser(null);
         }
       } catch {
-        // Silently keep unauthenticated
+        setCurrentUser(null);
+      } finally {
+        setIsAuthLoading(false);
       }
     };
     checkAuth();
   }, []);
+
+  // Listen to browser Back/Forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname || "/");
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const navigate = (path: string) => {
+    window.history.pushState({}, "", path);
+    const url = new URL(path, window.location.origin);
+    setCurrentPath(url.pathname);
+  };
+
+  // Route protection and safe redirection guard
+  useEffect(() => {
+    if (!isAuthLoading) {
+      if (!currentUser && currentPath !== "/login" && currentPath !== "/register") {
+        const redirectParam = currentPath !== "/" ? `?redirect=${encodeURIComponent(currentPath)}` : "";
+        window.history.replaceState({}, "", `/login${redirectParam}`);
+        setCurrentPath("/login");
+      } else if (currentUser && (currentPath === "/login" || currentPath === "/register")) {
+        const safe = getSafeRedirect(new URLSearchParams(window.location.search).get("redirect"));
+        window.history.replaceState({}, "", safe);
+        setCurrentPath(safe);
+      }
+    }
+  }, [isAuthLoading, currentUser, currentPath]);
 
   const handleLogout = async () => {
     try {
@@ -89,6 +136,7 @@ export const App: React.FC = () => {
       console.error("Logout request error:", err);
     } finally {
       setCurrentUser(null);
+      navigate("/login");
     }
   };
 
@@ -107,6 +155,8 @@ export const App: React.FC = () => {
     setVerificationResult(null);
     setIsVerifying(false);
     setVerificationError(null);
+    setDistributionError(null);
+    setActiveDocumentUid(null);
 
     setSelectedFile(file);
     setIsLoading(true);
@@ -128,11 +178,66 @@ export const App: React.FC = () => {
 
       const report: InspectionResponseDTO = await response.json();
       setInspectionReport(report);
+      if (report.document_uid) {
+        setActiveDocumentUid(report.document_uid);
+      }
     } catch (err: any) {
       console.error("Inspection request error:", err);
       setError(err.message || "Failed to inspect document structure.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleOpenDistribution = async () => {
+    if (!currentUser) {
+      navigate(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    if (!selectedFile) return;
+
+    if (activeDocumentUid) {
+      setDistributionError(null);
+      setIsDistributionModalOpen(true);
+      return;
+    }
+
+    setIsDistributing(true);
+    setDistributionError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("title", selectedFile.name);
+      const res = await fetch("/documents/", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          setCurrentUser(null);
+          navigate(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+          return;
+        }
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Document registration failed (HTTP ${res.status})`);
+      }
+
+      const data = await res.json();
+      setActiveDocumentUid(data.document_uid);
+      setIsDistributionModalOpen(true);
+    } catch (err: any) {
+      console.error("Document registration for distribution failed:", err);
+      if (inspectionReport?.document_uid) {
+        setActiveDocumentUid(inspectionReport.document_uid);
+        setIsDistributionModalOpen(true);
+      } else {
+        setDistributionError(err.message || "Failed to register document for distribution.");
+      }
+    } finally {
+      setIsDistributing(false);
     }
   };
 
@@ -199,6 +304,43 @@ export const App: React.FC = () => {
     setVerificationError(null);
   };
 
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen w-screen spatial-bg items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-3 p-6 rounded-3xl glass-top-island border border-white/95 shadow-xl animate-in fade-in duration-150">
+          <div className="w-10 h-10 rounded-2xl bg-sky-500/15 border border-sky-400/40 flex items-center justify-center text-sky-600 shadow-xs">
+            <Shield className="w-5 h-5 animate-pulse" />
+          </div>
+          <span className="text-xs font-medium text-slate-500">Verifying session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentPath === "/login") {
+    return (
+      <LoginPage
+        currentUser={currentUser}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+        }}
+        onNavigate={navigate}
+      />
+    );
+  }
+
+  if (currentPath === "/register") {
+    return (
+      <RegisterPage
+        currentUser={currentUser}
+        onRegisterSuccess={(user) => {
+          setCurrentUser(user);
+        }}
+        onNavigate={navigate}
+      />
+    );
+  }
+
   const isWebglAvailable =
     webglDiagnostic && (webglDiagnostic.webgl1_supported || webglDiagnostic.webgl2_supported);
 
@@ -232,9 +374,30 @@ export const App: React.FC = () => {
 
         {/* Right Action Controls */}
         <div className="flex items-center gap-2">
+          {selectedFile && (
+            <button
+              onClick={handleOpenDistribution}
+              disabled={isDistributing}
+              title="Create personalized watermarked distribution batch"
+              className="h-7 px-3 rounded-full bg-sky-500/15 hover:bg-sky-500/25 border border-sky-400/40 text-sky-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-wait"
+            >
+              {isDistributing ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Preparing...</span>
+                </>
+              ) : (
+                <>
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Distribute</span>
+                </>
+              )}
+            </button>
+          )}
+
           <label className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl glass-btn text-xs font-medium text-slate-700 cursor-pointer">
             <Upload className="w-3 h-3 text-sky-600" />
-            <span className="text-[11px]">Open PDF</span>
+            <span className="text-[11px]">{selectedFile ? "Inspect Another" : "Open PDF"}</span>
             <input
               type="file"
               accept=".pdf,application/pdf"
@@ -247,16 +410,28 @@ export const App: React.FC = () => {
             />
           </label>
 
-          <UserMenu
-            user={currentUser}
-            onOpenAuth={(mode = "login") => {
-              setAuthModalMode(mode);
-              setIsAuthModalOpen(true);
-            }}
-            onLogout={handleLogout}
-          />
+          {currentUser && (
+            <UserMenu
+              user={currentUser}
+              onLogout={handleLogout}
+            />
+          )}
         </div>
       </header>
+
+      {/* Distribution Error Alert */}
+      {distributionError && (
+        <div className="absolute top-18 left-1/2 -translate-x-1/2 z-40 max-w-md px-4 py-2.5 rounded-2xl bg-rose-50/95 border border-rose-300 text-rose-800 text-xs shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+          <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+          <span className="font-medium flex-1">{distributionError}</span>
+          <button
+            onClick={() => setDistributionError(null)}
+            className="p-1 text-rose-400 hover:text-rose-700 rounded-lg hover:bg-rose-100/50 cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* ---------------- Main Forensic Workspace ---------------- */}
       <main className="flex-1 w-full h-full relative overflow-hidden flex items-center justify-center">
@@ -505,16 +680,15 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Authentication Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        initialMode={authModalMode}
-        onClose={() => setIsAuthModalOpen(false)}
-        onAuthSuccess={(user) => {
-          setCurrentUser(user);
-          setIsAuthModalOpen(false);
-        }}
-      />
+      {/* Distribution Modal */}
+      {selectedFile && (
+        <DistributionModal
+          isOpen={isDistributionModalOpen}
+          onClose={() => setIsDistributionModalOpen(false)}
+          documentUid={activeDocumentUid || inspectionReport?.document_uid || ""}
+          documentTitle={selectedFile.name}
+        />
+      )}
     </div>
   );
 };

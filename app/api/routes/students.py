@@ -1,18 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
-from app.api.dependencies import get_repository
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.api.dependencies import get_repository, get_current_user_from_session
+from app.database.models import User
 from app.database.repository import Repository
 from app.api.schemas.student import StudentCreate, StudentResponse
-import sqlite3
 
 router = APIRouter()
 
-@router.post("/", response_model=StudentResponse)
+@router.post("/", response_model=StudentResponse, status_code=status.HTTP_201_CREATED)
 def create_student(
     student: StudentCreate,
+    current_user: User = Depends(get_current_user_from_session),
     repo: Repository = Depends(get_repository)
 ):
-    # The repository handles IntegrityError internally and returns existing if it matches?
-    # Actually, create_student has a try-except for IntegrityError to return existing.
     db_student = repo.create_student(student.student_uid, student.name)
     return StudentResponse(
         student_uid=db_student.student_uid,
