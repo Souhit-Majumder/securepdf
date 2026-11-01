@@ -16,8 +16,17 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 CarrierStatusType = Literal[
+    "VALID",
     "STRUCTURALLY_DECODED",
     "OBSERVED_SYNTAX",
+    "INVALID",
+    "NOT_FOUND",
+    "SECURITY_CONFLICT",
+    "ERROR",
+]
+
+VerificationStatusType = Literal[
+    "VALID",
     "INVALID",
     "NOT_FOUND",
     "SECURITY_CONFLICT",
@@ -106,6 +115,23 @@ class InspectionResponseDTO(BaseModel):
     overall_status: CarrierStatusType
     subject_ref: Optional[str] = Field(default=None, max_length=64)
     page_dimensions: List[PageDimensionDTO] = Field(default_factory=list)
+    carriers: List[MinimizedCarrierDTO] = Field(default_factory=list)
+    cross_layer: MinimizedCrossLayerDTO = Field(default_factory=MinimizedCrossLayerDTO)
+    timestamp: str = Field(max_length=64)
+
+
+class ActiveVerificationResponseDTO(BaseModel):
+    """
+    Top-level active verification response returned by the API.
+    Privacy-safe, minimized DTO: zero leakage of secrets, nonces, raw HMACs, or student PII.
+    """
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    verification_status: VerificationStatusType
+    authenticated_layers: List[str] = Field(default_factory=list)
+    reason: Optional[str] = Field(default=None, max_length=256)
+    document_uid: Optional[str] = Field(default=None, max_length=64)
+    subject_ref: Optional[str] = Field(default=None, max_length=64)
     carriers: List[MinimizedCarrierDTO] = Field(default_factory=list)
     cross_layer: MinimizedCrossLayerDTO = Field(default_factory=MinimizedCrossLayerDTO)
     timestamp: str = Field(max_length=64)

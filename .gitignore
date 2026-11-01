@@ -24,4 +24,17 @@ data/
 .vscode/
 .idea/
 
+# Research & External Datasets
 securepdf-dataset/
+experimental/
+
+# Output & Scratch Directories
+output/
+
+# Frontend Dependencies & Build Artifacts
+node_modules/
+*/node_modules/
+dist/
+*/dist/
+.vite/
+*/.vite/

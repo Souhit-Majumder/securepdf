@@ -7,8 +7,16 @@
  */
 
 export type CarrierStatusType =
+  | "VALID"
   | "STRUCTURALLY_DECODED"
   | "OBSERVED_SYNTAX"
+  | "INVALID"
+  | "NOT_FOUND"
+  | "SECURITY_CONFLICT"
+  | "ERROR";
+
+export type VerificationStatusType =
+  | "VALID"
   | "INVALID"
   | "NOT_FOUND"
   | "SECURITY_CONFLICT"
@@ -73,6 +81,17 @@ export interface InspectionResponseDTO {
   overall_status: CarrierStatusType;
   subject_ref: string | null;
   page_dimensions: PageDimensionDTO[];
+  carriers: MinimizedCarrierDTO[];
+  cross_layer: MinimizedCrossLayerDTO;
+  timestamp: string;
+}
+
+export interface ActiveVerificationResponseDTO {
+  verification_status: VerificationStatusType;
+  authenticated_layers: string[];
+  reason: string | null;
+  document_uid: string | null;
+  subject_ref: string | null;
   carriers: MinimizedCarrierDTO[];
   cross_layer: MinimizedCrossLayerDTO;
   timestamp: string;

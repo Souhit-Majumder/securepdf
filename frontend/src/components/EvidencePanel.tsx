@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Activity,
   Box,
@@ -7,10 +7,17 @@ import {
   Info,
   ShieldAlert,
   HelpCircle,
+  Lock,
+  ShieldCheck,
+  Key,
+  X,
+  AlertCircle,
 } from "lucide-react";
 import {
   InspectionResponseDTO,
   CarrierStatusType,
+  ActiveVerificationResponseDTO,
+  VerificationStatusType,
 } from "../types/inspection";
 
 interface EvidencePanelProps {
@@ -18,18 +25,43 @@ interface EvidencePanelProps {
   activeLayer: number; // 0 = Catalog, 1 = Annotations, 2 = Stego Kerning
   onSelectLayer: (layerIndex: number) => void;
   isStandAlone?: boolean;
+  verificationResult?: ActiveVerificationResponseDTO | null;
+  isVerifying?: boolean;
+  verificationError?: string | null;
+  onVerify?: (auditKey: string) => void;
+  onCancelVerify?: () => void;
+  onClearVerify?: () => void;
+  forensicKey?: string | null;
+  onSetForensicKey?: (key: string) => void;
 }
 
 export const EvidencePanel: React.FC<EvidencePanelProps> = ({
   report,
   activeLayer,
   isStandAlone = false,
+  verificationResult = null,
+  isVerifying = false,
+  verificationError = null,
+  onVerify,
+  onCancelVerify,
+  onClearVerify,
+  forensicKey = null,
+  onSetForensicKey,
 }) => {
+  const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const [keyInput, setKeyInput] = useState("");
   const carrier = report.carriers[activeLayer] || report.carriers[0];
   const pageDim = report.page_dimensions[0] || null;
 
   const renderStatusBadge = (status: CarrierStatusType) => {
     switch (status) {
+      case "VALID":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shadow-sm shadow-emerald-500/20 tracking-tight">
+            <Lock className="w-2.5 h-2.5" />
+            VALID
+          </span>
+        );
       case "STRUCTURALLY_DECODED":
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shadow-sm shadow-emerald-500/20 tracking-tight">
@@ -64,6 +96,47 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-white/5 text-slate-400 border border-white/10">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
             NOT_FOUND
+          </span>
+        );
+    }
+  };
+
+  const renderVerificationStatusBadge = (status: VerificationStatusType) => {
+    switch (status) {
+      case "VALID":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shadow-sm shadow-emerald-500/20 tracking-tight">
+            <Lock className="w-2.5 h-2.5" />
+            VALID
+          </span>
+        );
+      case "INVALID":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9.5px] font-bold bg-rose-500/20 text-rose-300 border border-rose-400/40 shadow-sm shadow-rose-500/20 tracking-tight">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+            INVALID
+          </span>
+        );
+      case "SECURITY_CONFLICT":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9.5px] font-bold bg-purple-500/20 text-purple-300 border border-purple-400/40 shadow-sm shadow-purple-500/20 tracking-tight">
+            <ShieldAlert className="w-2.5 h-2.5" />
+            SECURITY_CONFLICT
+          </span>
+        );
+      case "NOT_FOUND":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9.5px] font-medium bg-white/5 text-slate-400 border border-white/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+            NOT_FOUND
+          </span>
+        );
+      case "ERROR":
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9.5px] font-medium bg-amber-500/20 text-amber-300 border border-amber-400/40">
+            <AlertCircle className="w-2.5 h-2.5" />
+            ERROR
           </span>
         );
     }
@@ -277,6 +350,153 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
             </div>
           </div>
 
+          {/* ----------------- Phase B: Cryptographic Verification ----------------- */}
+          <div className="pt-3 border-t border-white/10 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <div className="p-1 rounded-md bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                  <ShieldCheck className="w-3 h-3" />
+                </div>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-white">
+                  Cryptographic Verification
+                </span>
+              </div>
+              <span className="text-[8px] font-mono text-slate-400 bg-white/5 px-1.5 py-0.5 rounded border border-white/10 font-bold">
+                PHASE B
+              </span>
+            </div>
+
+            {/* State 1: In Progress / Running with Indeterminate Pulse */}
+            {isVerifying ? (
+              <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3.5 h-3.5 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-[10px] font-medium text-slate-200">
+                      Verifying carriers...
+                    </span>
+                  </div>
+                  {onCancelVerify && (
+                    <button
+                      onClick={onCancelVerify}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-400/30 text-[9px] transition"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                      Cancel
+                    </button>
+                  )}
+                </div>
+                <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-sky-400 rounded-full animate-pulse w-3/4" />
+                </div>
+                <p className="text-[8.5px] text-slate-400 leading-tight">
+                  Running cryptographic HMAC validation and database issuance binding checks.
+                </p>
+              </div>
+            ) : verificationResult ? (
+              /* State 2: Verification Result Available */
+              <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-2 text-[10px]">
+                <div className="flex items-center justify-between pb-1 border-b border-white/10">
+                  <span className="text-slate-400 text-[9px]">Outcome</span>
+                  <div>{renderVerificationStatusBadge(verificationResult.verification_status)}</div>
+                </div>
+
+                {verificationResult.reason && (
+                  <div className="text-[9px] text-amber-300/90 leading-tight py-0.5">
+                    {verificationResult.reason}
+                  </div>
+                )}
+
+                {/* Authenticated Layers */}
+                <div className="space-y-1 py-0.5">
+                  <span className="text-[8.5px] uppercase tracking-wider text-slate-400 block font-bold">
+                    Authenticated Carriers
+                  </span>
+                  {verificationResult.authenticated_layers.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {verificationResult.authenticated_layers.map((layerName) => (
+                        <span
+                          key={layerName}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[9px] font-medium"
+                        >
+                          <Lock className="w-2.5 h-2.5" />
+                          {layerName}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-[9px] text-slate-400 italic">
+                      No carriers authenticated under master key.
+                    </span>
+                  )}
+                </div>
+
+                {/* Pseudonymized Subject Reference */}
+                {verificationResult.subject_ref && (
+                  <div className="flex items-center justify-between py-1 border-t border-white/10">
+                    <span className="text-slate-400 text-[9px]">Subject Reference</span>
+                    <span className="font-mono text-[9px] text-sky-300 font-bold">
+                      {verificationResult.subject_ref}
+                    </span>
+                  </div>
+                )}
+
+                {verificationResult.document_uid && (
+                  <div className="flex items-center justify-between py-0.5">
+                    <span className="text-slate-400 text-[9px]">Document UID</span>
+                    <span className="font-mono text-[9px] text-white font-semibold truncate max-w-[150px]">
+                      {verificationResult.document_uid}
+                    </span>
+                  </div>
+                )}
+
+                {/* Clear Button */}
+                {onClearVerify && (
+                  <button
+                    onClick={onClearVerify}
+                    className="w-full mt-1.5 py-1 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-[9.5px] text-slate-300 hover:text-white transition font-medium"
+                  >
+                    Clear Verification
+                  </button>
+                )}
+              </div>
+            ) : (
+              /* State 3: Idle / Ready to Verify */
+              <div className="space-y-2">
+                {verificationError && (
+                  <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-400/30 text-[9.5px] text-rose-300 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <ShieldAlert className="w-3 h-3 text-rose-400 shrink-0" />
+                      <span>Verification Failed</span>
+                    </div>
+                    <p className="text-[8.5px] text-rose-200/90 leading-tight">
+                      {verificationError}
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    if (forensicKey && onVerify) {
+                      onVerify(forensicKey);
+                    } else {
+                      setIsPromptOpen(true);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-2xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 hover:text-white border border-sky-400/40 shadow-sm transition group"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-sky-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-[10.5px] font-bold tracking-wide">
+                    Investigate & Verify
+                  </span>
+                </button>
+                <p className="text-[8.5px] text-slate-400 text-center leading-tight">
+                  Cryptographically authenticate carriers against database issuance.
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Forensic Invariant Footnote */}
           <div className="mt-3 p-3 rounded-xl bg-white/5 border border-white/10 text-[9px] text-slate-300 flex items-start gap-2 leading-relaxed shadow-xs">
             <Info className="w-3.5 h-3.5 shrink-0 text-sky-400 mt-0.5" />
@@ -289,6 +509,74 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
         <div className="flex-1 flex flex-col items-center justify-center text-center p-4 text-slate-400 text-xs">
           <HelpCircle className="w-5 h-5 mb-1 opacity-40" />
           Select a carrier layer to inspect structural evidence.
+        </div>
+      )}
+
+      {/* Forensic Key Prompt Modal */}
+      {isPromptOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-[320px] glass-dock-dark rounded-3xl p-5 border border-white/20 shadow-2xl text-slate-100 space-y-3.5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                  <Key className="w-3.5 h-3.5" />
+                </div>
+                <h3 className="text-xs font-bold text-white">Forensic Audit Key</h3>
+              </div>
+              <button
+                onClick={() => setIsPromptOpen(false)}
+                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <p className="text-[9.5px] text-slate-300 leading-relaxed">
+              Enter the operator audit key configured in <code className="text-sky-300 font-mono">SECUREPDF_FORENSIC_KEY</code> to perform active cryptographic verification.
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (keyInput.trim()) {
+                  if (onSetForensicKey) {
+                    onSetForensicKey(keyInput.trim());
+                  }
+                  setIsPromptOpen(false);
+                  if (onVerify) {
+                    onVerify(keyInput.trim());
+                  }
+                }
+              }}
+              className="space-y-3"
+            >
+              <input
+                type="password"
+                placeholder="Audit Access Key"
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+                autoFocus
+                className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-xs text-white placeholder-slate-400 focus:outline-hidden focus:border-sky-400 transition font-mono"
+              />
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsPromptOpen(false)}
+                  className="flex-1 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs text-slate-300 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!keyInput.trim()}
+                  className="flex-1 py-1.5 rounded-xl bg-sky-500/30 hover:bg-sky-500/40 border border-sky-400/40 text-xs font-bold text-white transition disabled:opacity-40"
+                >
+                  Verify
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

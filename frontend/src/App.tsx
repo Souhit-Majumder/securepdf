@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Shield,
   Upload,
@@ -14,7 +14,11 @@ import {
   ChevronDown,
   Lock,
 } from "lucide-react";
-import { InspectionResponseDTO, WebGLDiagnosticInfo } from "./types/inspection";
+import {
+  InspectionResponseDTO,
+  ActiveVerificationResponseDTO,
+  WebGLDiagnosticInfo,
+} from "./types/inspection";
 import { probeWebGLSupport } from "./utils/webglCheck";
 import { UploadZone } from "./components/UploadZone";
 import { Viewport3D } from "./components/Viewport3D";
@@ -26,6 +30,13 @@ export const App: React.FC = () => {
   const [inspectionReport, setInspectionReport] = useState<InspectionResponseDTO | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Phase B verification state
+  const [verificationResult, setVerificationResult] = useState<ActiveVerificationResponseDTO | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [forensicKey, setForensicKey] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Layer selection state (0 = Catalog, 1 = Annotations, 2 = Text Stream)
   const [activeLayer, setActiveLayer] = useState<number>(0);
@@ -52,6 +63,15 @@ export const App: React.FC = () => {
   }, []);
 
   const handleFileSelected = async (file: File) => {
+    // Abort in-flight verification if running
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setVerificationResult(null);
+    setIsVerifying(false);
+    setVerificationError(null);
+
     setSelectedFile(file);
     setIsLoading(true);
     setError(null);
@@ -78,6 +98,69 @@ export const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleStartVerification = async (key: string) => {
+    if (!selectedFile) return;
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    setIsVerifying(true);
+    setVerificationError(null);
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const response = await fetch("/api/inspection/verify", {
+        method: "POST",
+        headers: {
+          "X-SecurePDF-Audit-Key": key,
+        },
+        body: formData,
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401 || response.status === 403) {
+          setForensicKey(null); // Clear invalid key to re-prompt
+        }
+        throw new Error(errorData.detail || `Verification failed (HTTP ${response.status})`);
+      }
+
+      const result: ActiveVerificationResponseDTO = await response.json();
+      setVerificationResult(result);
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        console.info("Verification aborted by user or file switch.");
+        return;
+      }
+      console.error("Verification error:", err);
+      setVerificationError(err.message || "Failed to perform active verification.");
+    } finally {
+      setIsVerifying(false);
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
+    }
+  };
+
+  const handleCancelVerification = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsVerifying(false);
+  };
+
+  const handleClearVerification = () => {
+    setVerificationResult(null);
+    setVerificationError(null);
   };
 
   const isWebglAvailable =
@@ -261,6 +344,14 @@ export const App: React.FC = () => {
               report={inspectionReport}
               activeLayer={activeLayer}
               onSelectLayer={setActiveLayer}
+              verificationResult={verificationResult}
+              isVerifying={isVerifying}
+              verificationError={verificationError}
+              onVerify={handleStartVerification}
+              onCancelVerify={handleCancelVerification}
+              onClearVerify={handleClearVerification}
+              forensicKey={forensicKey}
+              onSetForensicKey={setForensicKey}
             />
           </aside>
         )}

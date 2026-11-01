@@ -14,12 +14,17 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-import re
+import threading
 import uuid
 import fitz
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 
+from app.api.dependencies import (
+    get_authenticated_forensic_context,
+    get_inspection_service,
+)
 from app.api.schemas.inspection import (
+    ActiveVerificationResponseDTO,
     CarrierStatusType,
     InspectionResponseDTO,
     MinimizedAnnotationLocationDTO,
@@ -28,10 +33,16 @@ from app.api.schemas.inspection import (
     MinimizedContentStreamLocationDTO,
     MinimizedCrossLayerDTO,
     PageDimensionDTO,
+    VerificationStatusType,
 )
 from app.config import config
-from app.inspection.models import AnnotationLocation, CatalogLocation
+from app.inspection.models import (
+    AnnotationLocation,
+    AuthorizationContext,
+    CatalogLocation,
+)
 from app.inspection.pdf_inspector import PdfStructuralInspector
+from app.inspection.service import InspectionService
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +53,91 @@ CHUNK_SIZE = 64 * 1024              # 64 KB
 ALLOWED_ROTATIONS = (0, 90, 180, 270)
 
 
-def sanitize_filename(filename: str | None) -> str:
-    """Strips path traversal sequences and bounds filename to safe ASCII symbols."""
-    if not filename:
-        return "uploaded.pdf"
-    clean = re.sub(r"[^a-zA-Z0-9._-]", "_", Path(filename).name)
-    return clean[:128] if clean else "uploaded.pdf"
+async def save_upload_pdf(file: UploadFile, dest_path: Path) -> None:
+    """
+    Validates PDF magic bytes, bounds upload size to 20 MB,
+    and streams the upload to destination in 64 KB chunks.
+    """
+    first_chunk = await file.read(CHUNK_SIZE)
+    if not first_chunk.startswith(b"%PDF-"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid PDF file format: missing '%PDF-' header",
+        )
+
+    total_bytes = len(first_chunk)
+    if total_bytes > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="File too large (maximum 20MB)",
+        )
+
+    with open(dest_path, "wb") as f:
+        f.write(first_chunk)
+        while chunk := await file.read(CHUNK_SIZE):
+            total_bytes += len(chunk)
+            if total_bytes > MAX_UPLOAD_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail="File too large (maximum 20MB)",
+                )
+            f.write(chunk)
+
+
+def map_report_carriers(carriers: list) -> list[MinimizedCarrierDTO]:
+    """Maps internal carrier inspection results to privacy-safe minimized DTOs."""
+    minimized_carriers: list[MinimizedCarrierDTO] = []
+    for carrier in carriers:
+        cat_loc: MinimizedCatalogLocationDTO | None = None
+        annot_locs: list[MinimizedAnnotationLocationDTO] = []
+        stream_locs: list[MinimizedContentStreamLocationDTO] = []
+
+        for loc in carrier.locations:
+            if isinstance(loc, CatalogLocation):
+                cat_loc = MinimizedCatalogLocationDTO(
+                    carrier_type="CATALOG",
+                    catalog_xref=loc.catalog_xref,
+                )
+            elif isinstance(loc, AnnotationLocation):
+                annot_locs.append(
+                    MinimizedAnnotationLocationDTO(
+                        carrier_type="ANNOTATION",
+                        page_index=loc.page_index,
+                        annotation_xref=loc.annotation_xref,
+                        rect=[float(v) for v in loc.rect],
+                        title=loc.title,
+                    )
+                )
+
+        if carrier.modulation_samples:
+            for sample in carrier.modulation_samples:
+                s_loc = sample.location
+                stream_locs.append(
+                    MinimizedContentStreamLocationDTO(
+                        carrier_type="CONTENT_STREAM",
+                        page_index=s_loc.page_index,
+                        content_stream_xref=s_loc.content_stream_xref,
+                        gap_index=s_loc.gap_index,
+                        displacement=s_loc.displacement,
+                        bit_value=s_loc.bit_value,
+                        is_intentional=sample.is_intentional_modulation,
+                    )
+                )
+
+        min_carrier = MinimizedCarrierDTO(
+            carrier_name=carrier.carrier_name,
+            status=carrier.status,
+            signature_ref=carrier.signature_ref,
+            total_word_gaps=carrier.total_word_gaps,
+            modulated_word_gaps=carrier.modulated_word_gaps,
+            bit_1_count=carrier.bit_1_count,
+            bit_0_count=carrier.bit_0_count,
+            catalog_location=cat_loc,
+            annotation_locations=annot_locs,
+            content_stream_locations=stream_locs,
+        )
+        minimized_carriers.append(min_carrier)
+    return minimized_carriers
 
 
 @router.post("/inspect", response_model=InspectionResponseDTO)
@@ -62,31 +152,8 @@ async def inspect_document(file: UploadFile = File(...)) -> InspectionResponseDT
     temp_path = temp_dir / f"inspect_{request_id}.pdf"
 
     try:
-        # 1. Read first chunk to validate magic bytes
-        first_chunk = await file.read(CHUNK_SIZE)
-        if not first_chunk.startswith(b"%PDF-"):
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid PDF file format: missing '%PDF-' header",
-            )
-
-        total_bytes = len(first_chunk)
-        if total_bytes > MAX_UPLOAD_SIZE:
-            raise HTTPException(
-                status_code=413,
-                detail="File too large (maximum 20MB)",
-            )
-
-        with open(temp_path, "wb") as f:
-            f.write(first_chunk)
-            while chunk := await file.read(CHUNK_SIZE):
-                total_bytes += len(chunk)
-                if total_bytes > MAX_UPLOAD_SIZE:
-                    raise HTTPException(
-                        status_code=413,
-                        detail="File too large (maximum 20MB)",
-                    )
-                f.write(chunk)
+        # 1. Stream and validate uploaded PDF to temporary storage
+        await save_upload_pdf(file, temp_path)
 
         # 2. Extract page dimensions using PyMuPDF in read-only mode
         try:
@@ -138,57 +205,7 @@ async def inspect_document(file: UploadFile = File(...)) -> InspectionResponseDT
             else None
         )
 
-        minimized_carriers: list[MinimizedCarrierDTO] = []
-        for carrier in report.carriers:
-            cat_loc: MinimizedCatalogLocationDTO | None = None
-            annot_locs: list[MinimizedAnnotationLocationDTO] = []
-            stream_locs: list[MinimizedContentStreamLocationDTO] = []
-
-            for loc in carrier.locations:
-                if isinstance(loc, CatalogLocation):
-                    cat_loc = MinimizedCatalogLocationDTO(
-                        carrier_type="CATALOG",
-                        catalog_xref=loc.catalog_xref,
-                    )
-                elif isinstance(loc, AnnotationLocation):
-                    annot_locs.append(
-                        MinimizedAnnotationLocationDTO(
-                            carrier_type="ANNOTATION",
-                            page_index=loc.page_index,
-                            annotation_xref=loc.annotation_xref,
-                            rect=[float(v) for v in loc.rect],
-                            title=loc.title,
-                        )
-                    )
-
-            if carrier.modulation_samples:
-                for sample in carrier.modulation_samples:
-                    s_loc = sample.location
-                    stream_locs.append(
-                        MinimizedContentStreamLocationDTO(
-                            carrier_type="CONTENT_STREAM",
-                            page_index=s_loc.page_index,
-                            content_stream_xref=s_loc.content_stream_xref,
-                            gap_index=s_loc.gap_index,
-                            displacement=s_loc.displacement,
-                            bit_value=s_loc.bit_value,
-                            is_intentional=sample.is_intentional_modulation,
-                        )
-                    )
-
-            min_carrier = MinimizedCarrierDTO(
-                carrier_name=carrier.carrier_name,
-                status=carrier.status,  # type: ignore[arg-type]
-                signature_ref=carrier.signature_ref,
-                total_word_gaps=carrier.total_word_gaps,
-                modulated_word_gaps=carrier.modulated_word_gaps,
-                bit_1_count=carrier.bit_1_count,
-                bit_0_count=carrier.bit_0_count,
-                catalog_location=cat_loc,
-                annotation_locations=annot_locs,
-                content_stream_locations=stream_locs,
-            )
-            minimized_carriers.append(min_carrier)
+        minimized_carriers = map_report_carriers(report.carriers)
 
         cross_layer = MinimizedCrossLayerDTO(
             carrier_tokens_match=report.cross_layer.signatures_match,
@@ -230,5 +247,128 @@ async def inspect_document(file: UploadFile = File(...)) -> InspectionResponseDT
                 logger.warning(
                     "Failed to delete temp file %s: %s",
                     request_id,
+                    type(cleanup_err).__name__,
+                )
+
+
+@router.post("/verify", response_model=ActiveVerificationResponseDTO)
+async def verify_document(
+    request: Request,
+    file: UploadFile = File(...),
+    auth_ctx: AuthorizationContext = Depends(get_authenticated_forensic_context),
+    inspection_service: InspectionService = Depends(get_inspection_service),
+) -> ActiveVerificationResponseDTO:
+    """
+    Performs active cryptographic fingerprint investigation and verification.
+    Guarantees:
+    - Enforces forensic key authentication and anti-oracle rate limiting.
+    - Runs isolated verification pipeline while collecting bounded evidence.
+    - Cooperative cancellation via ASGI disconnect monitoring and threading.Event.
+    - Best-effort temporary file cleanup.
+    - Minimized, privacy-safe response DTO without master keys, HMACs, nonces, or student PII.
+    """
+    request_id = uuid.uuid4().hex
+    temp_dir = config.TEMP_DIR
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_path = temp_dir / f"verify_{request_id}.pdf"
+
+    cancel_event = threading.Event()
+
+    try:
+        # 1. Stream and validate uploaded PDF to temporary storage
+        await save_upload_pdf(file, temp_path)
+
+        # 2. Watcher for ASGI client disconnection
+        async def watch_client_disconnect():
+            while not cancel_event.is_set():
+                if await request.is_disconnected():
+                    cancel_event.set()
+                    logger.info("Client HTTP disconnect detected during verification: request_id=%s", request_id)
+                    break
+                await asyncio.sleep(0.05)
+
+        worker_task = asyncio.create_task(
+            asyncio.to_thread(
+                inspection_service.investigate_with_evidence,
+                str(temp_path),
+                auth_ctx,
+                cancel_event,
+            )
+        )
+        watcher_task = asyncio.create_task(watch_client_disconnect())
+
+        done, pending = await asyncio.wait(
+            [worker_task, watcher_task],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+        for t in pending:
+            t.cancel()
+
+        if cancel_event.is_set() and not worker_task.done():
+            raise HTTPException(status_code=499, detail="Client closed request")
+
+        result_dict, report = await worker_task
+
+        # 3. Map to ActiveVerificationResponseDTO
+        verification_status = result_dict.get("status", report.overall_status)
+        authenticated_layers = result_dict.get("authenticated_layers", [])
+        reason = result_dict.get("reason", None)
+
+        document_uid = (
+            report.document_uid
+            if report.document_uid and report.document_uid != "UNKNOWN"
+            else None
+        )
+        subject_ref = (
+            report.subject.subject_ref
+            if report.subject and report.subject.subject_ref and report.subject.subject_ref != "subj_anon_unknown"
+            else None
+        )
+
+        minimized_carriers = map_report_carriers(report.carriers)
+
+        cross_layer = MinimizedCrossLayerDTO(
+            carrier_tokens_match=report.cross_layer.signatures_match,
+            cross_carrier_conflict=report.cross_layer.cross_carrier_conflict,
+            conflict_reason=report.cross_layer.conflict_reason,
+        )
+
+        return ActiveVerificationResponseDTO(
+            verification_status=verification_status,
+            authenticated_layers=authenticated_layers,
+            reason=reason,
+            document_uid=document_uid,
+            subject_ref=subject_ref,
+            carriers=minimized_carriers,
+            cross_layer=cross_layer,
+            timestamp=report.timestamp,
+        )
+
+    except HTTPException:
+        raise
+    except asyncio.CancelledError:
+        logger.info("Verification request cancelled: request_id=%s", request_id)
+        cancel_event.set()
+        raise
+    except Exception as exc:
+        logger.error(
+            "Verification error: request_id=%s, error_type=%s",
+            request_id,
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Internal verification error", "request_id": request_id},
+        )
+    finally:
+        # Best-effort temporary file cleanup
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except Exception as cleanup_err:
+                logger.warning(
+                    "Failed to delete temp file %s: %s",
+                    temp_path,
                     type(cleanup_err).__name__,
                 )

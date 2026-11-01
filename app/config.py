@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Optional
 
 class Config:
     """
@@ -71,6 +72,11 @@ class Config:
     @property
     def STEGO_MAX_OUTPUT_BYTES(self) -> int:
         return int(os.getenv("SECUREPDF_STEGO_MAX_OUTPUT_BYTES", str(5 * 1024 * 1024)))
+
+    @property
+    def FORENSIC_KEY(self) -> Optional[str]:
+        key = os.getenv("SECUREPDF_FORENSIC_KEY")
+        return key if key else None
 
     def ensure_directories(self):
         """Ensures that all runtime directories exist on disk."""
