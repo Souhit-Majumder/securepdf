@@ -29,6 +29,7 @@ interface Viewport3DProps {
   spatialTool?: "orbit" | "pan";
   currentPage?: number;
   onTotalPagesChange?: (total: number) => void;
+  selectedAnnotationXref?: number | null;
 }
 
 export const Viewport3D: React.FC<Viewport3DProps> = ({
@@ -42,6 +43,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   spatialTool = "orbit",
   currentPage = 1,
   onTotalPagesChange,
+  selectedAnnotationXref = null,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -363,37 +365,59 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     };
 
     pageAnnots.forEach((annot) => {
+      const isSelected = selectedAnnotationXref === annot.annotation_xref;
       const mapped = mapPyMuPdfToPdfJs(annot.rect, pageDim.cropbox, mockViewport);
       const planeBox = mapViewportTo3DPlane(mapped, pageDim.width, pageDim.height, paperWidth, paperHeight);
 
+      // Separate native dimensions from the visual highlight footprint
       const boxWidth = Math.max(planeBox.size[0], 0.35);
       const boxHeight = Math.max(planeBox.size[1], 0.15);
 
       const boxGeo = new THREE.PlaneGeometry(boxWidth, boxHeight);
+
+      // Distinct highlight material and elevated z-depth for selected annotation
+      const boxColor = isSelected ? 0x38bdf8 : 0x0284c7;
+      const boxOpacity = isSelected ? 0.38 : (activeLayer === 1 ? 0.16 : 0.08);
+      const zOffset = isSelected ? 0.016 : 0.012;
+
       const boxMat = new THREE.MeshBasicMaterial({
-        color: 0x0284c7, // sky-600 for clear visibility on white paper
+        color: boxColor,
         transparent: true,
-        opacity: activeLayer === 1 ? 0.16 : 0.08,
+        opacity: boxOpacity,
         side: THREE.DoubleSide,
         depthWrite: false,
       });
 
       const boxMesh = new THREE.Mesh(boxGeo, boxMat);
-      boxMesh.position.set(planeBox.center[0], planeBox.center[1], 0.012);
+      boxMesh.position.set(planeBox.center[0], planeBox.center[1], zOffset);
       group.add(boxMesh);
 
-      // Fine cyan outline
+      // Border outline (vibrant electric sky when selected)
       const edges = new THREE.EdgesGeometry(boxGeo);
       const lineMat = new THREE.LineBasicMaterial({
-        color: 0x0284c7,
-        linewidth: 1.5,
+        color: isSelected ? 0x0ea5e9 : 0x0284c7,
+        linewidth: isSelected ? 2.5 : 1.5,
         transparent: true,
-        opacity: activeLayer === 1 ? 0.88 : 0.55,
+        opacity: isSelected ? 1.0 : (activeLayer === 1 ? 0.88 : 0.55),
       });
       const wireframe = new THREE.LineSegments(edges, lineMat);
       boxMesh.add(wireframe);
+
+      // Prominent outer reticle bracket when selected
+      if (isSelected) {
+        const reticleGeo = new THREE.PlaneGeometry(boxWidth + 0.08, boxHeight + 0.06);
+        const reticleEdges = new THREE.EdgesGeometry(reticleGeo);
+        const reticleLineMat = new THREE.LineBasicMaterial({
+          color: 0x38bdf8,
+          linewidth: 1.5,
+          transparent: true,
+          opacity: 0.90,
+        });
+        const outerReticle = new THREE.LineSegments(reticleEdges, reticleLineMat);
+        boxMesh.add(outerReticle);
+      }
     });
-  }, [report, visibleLayers.annotations, activeLayer, currentPage]);
+  }, [report, visibleLayers.annotations, activeLayer, currentPage, selectedAnnotationXref]);
 
   // Deliberate user drag handlers for camera orbit/pan
   const handleMouseDown = (e: React.MouseEvent) => {

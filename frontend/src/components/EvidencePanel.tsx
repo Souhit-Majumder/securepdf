@@ -35,6 +35,10 @@ interface EvidencePanelProps {
   onClearVerify?: () => void;
   forensicKey?: string | null;
   onSetForensicKey?: (key: string) => void;
+  selectedAnnotationXref?: number | null;
+  onSelectAnnotation?: (xref: number | null) => void;
+  onPageChange?: (page: number) => void;
+  currentPage?: number;
 }
 
 export const EvidencePanel: React.FC<EvidencePanelProps> = ({
@@ -49,6 +53,10 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
   onClearVerify,
   forensicKey = null,
   onSetForensicKey,
+  selectedAnnotationXref = null,
+  onSelectAnnotation,
+  onPageChange,
+  currentPage = 1,
 }) => {
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [keyInput, setKeyInput] = useState("");
@@ -280,6 +288,76 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                   <div className="flex justify-between items-center py-0.5 text-[10px]">
                     <span className="text-slate-400">Signature Ref</span>
                     <span className="font-mono text-sky-300 font-bold">{carrier.signature_ref}</span>
+                  </div>
+                )}
+
+                {/* Individual Annotation Instances */}
+                {carrier.annotation_locations.length > 0 && (
+                  <div className="pt-2 mt-1 border-t border-white/10 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider">
+                        Detected Locations ({carrier.annotation_locations.length})
+                      </span>
+                      <span className="text-[7.5px] text-slate-400 font-medium">Click to highlight</span>
+                    </div>
+
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                      {carrier.annotation_locations.map((annot, idx) => {
+                        const isSelected = selectedAnnotationXref === annot.annotation_xref;
+                        const nativeWidth = (annot.rect[2] - annot.rect[0]).toFixed(2);
+                        const nativeHeight = (annot.rect[3] - annot.rect[1]).toFixed(2);
+
+                        return (
+                          <div
+                            key={annot.annotation_xref || idx}
+                            data-testid={`annotation-entry-${annot.annotation_xref}`}
+                            onClick={() => {
+                              if (onSelectAnnotation) {
+                                onSelectAnnotation(isSelected ? null : annot.annotation_xref);
+                              }
+                              if (onPageChange && annot.page_index !== ((currentPage || 1) - 1)) {
+                                onPageChange(annot.page_index + 1);
+                              }
+                            }}
+                            className={`p-2 rounded-xl border transition-all text-[9.5px] cursor-pointer ${
+                              isSelected
+                                ? "bg-sky-500/20 border-sky-400/80 ring-1 ring-sky-400/50 text-white shadow-sm"
+                                : "bg-white/5 border-white/10 hover:bg-white/10 text-slate-300"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-mono font-bold text-sky-300 flex items-center gap-1.5">
+                                <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-sky-400 animate-pulse" : "bg-slate-400"}`} />
+                                {annot.title || `SPDF${idx}`}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="px-1.5 py-0.2 rounded bg-white/10 text-[8px] font-mono text-slate-300">
+                                  Page {annot.page_index + 1}
+                                </span>
+                                <span className="font-mono text-[8px] text-slate-400">
+                                  xref #{annot.annotation_xref}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Native coordinates cleanly separated from visual marker enlargement */}
+                            <div className="space-y-0.5 text-[8.5px] font-mono text-slate-300 bg-black/20 p-1.5 rounded-lg border border-white/5">
+                              <div className="flex justify-between text-slate-400">
+                                <span>Native Rect:</span>
+                                <span className="text-slate-400">Points (pt)</span>
+                              </div>
+                              <div className="text-sky-200 truncate">
+                                [{annot.rect.map(v => v.toFixed(2)).join(", ")}]
+                              </div>
+                              <div className="flex justify-between text-[8px] text-slate-400 pt-0.5 border-t border-white/5">
+                                <span>Dimensions: {nativeWidth} × {nativeHeight} pt</span>
+                                <span className="text-[7.5px] text-sky-300/80 italic">Enlarged in 3D</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </>

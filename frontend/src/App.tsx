@@ -68,6 +68,9 @@ export const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
 
+  // Layer 2 annotation localization state
+  const [selectedAnnotationXref, setSelectedAnnotationXref] = useState<number | null>(null);
+
   // WebGL diagnostic probe state
   const [webglDiagnostic, setWebglDiagnostic] = useState<WebGLDiagnosticInfo | null>(null);
 
@@ -165,6 +168,7 @@ export const App: React.FC = () => {
     setActiveDocumentUid(null);
     setCurrentPage(1);
     setTotalPages(1);
+    setSelectedAnnotationXref(null);
 
     setSelectedFile(file);
     setIsLoading(true);
@@ -551,6 +555,7 @@ export const App: React.FC = () => {
                 spatialTool={spatialTool}
                 currentPage={currentPage}
                 onTotalPagesChange={setTotalPages}
+                selectedAnnotationXref={selectedAnnotationXref}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-slate-500">
@@ -578,6 +583,10 @@ export const App: React.FC = () => {
               onClearVerify={handleClearVerification}
               forensicKey={forensicKey}
               onSetForensicKey={setForensicKey}
+              selectedAnnotationXref={selectedAnnotationXref}
+              onSelectAnnotation={setSelectedAnnotationXref}
+              onPageChange={setCurrentPage}
+              currentPage={currentPage}
             />
           </aside>
         )}
