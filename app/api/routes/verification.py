@@ -72,4 +72,6 @@ async def verify_document(
         reason=result.get("reason"),
         student_uid=None,
         student_name=None,
+        recipient_name=None,
+        recipient_identifier=None,
     )

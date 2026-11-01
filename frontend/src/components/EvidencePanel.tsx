@@ -12,6 +12,8 @@ import {
   Key,
   X,
   AlertCircle,
+  UserCheck,
+  Shield,
 } from "lucide-react";
 import {
   InspectionResponseDTO,
@@ -449,6 +451,29 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                     </span>
                   </div>
                 )}
+
+                {/* Attributed Recipient (Phase 4) */}
+                {verificationResult.recipient_name && verificationResult.recipient_identifier ? (
+                  <div className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-400/30 space-y-1 my-1">
+                    <div className="flex items-center gap-1.5 text-sky-300 font-bold text-[9px] uppercase tracking-wider">
+                      <UserCheck className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                      Attributed Recipient
+                    </div>
+                    <div className="flex items-baseline justify-between pt-0.5">
+                      <span className="text-[11px] font-bold text-white truncate max-w-[140px]">
+                        {verificationResult.recipient_name}
+                      </span>
+                      <span className="text-[9.5px] font-mono font-semibold text-sky-300 bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-400/20 shrink-0">
+                        {verificationResult.recipient_identifier}
+                      </span>
+                    </div>
+                  </div>
+                ) : verificationResult.verification_status === "VALID" ? (
+                  <div className="p-2 rounded-xl bg-white/5 border border-white/10 text-[9px] text-slate-400 italic my-1 flex items-center gap-1.5">
+                    <Shield className="w-3 h-3 text-amber-400/80 shrink-0" />
+                    <span>Forensic Audit Mode: Recipient identity redacted</span>
+                  </div>
+                ) : null}
 
                 {/* Clear Button */}
                 {onClearVerify && (

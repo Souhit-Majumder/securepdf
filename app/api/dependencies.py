@@ -131,6 +131,25 @@ def get_current_user_from_session(
 
     return user
 
+def get_optional_user_from_session(
+    request: Request,
+    repo: Repository = Depends(get_repository)
+) -> Optional["User"]:
+    """Safely extracts the user from the HttpOnly session cookie without raising 401 if missing."""
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
+        return None
+
+    session = repo.get_session(token)
+    if not session:
+        return None
+
+    from app.crypto.auth import is_session_expired
+    if is_session_expired(session.expires_at):
+        return None
+
+    return repo.get_user_by_id(session.user_id)
+
 class LegacyVerificationAuth:
     def __init__(self, auth_type: str, user: Optional["User"] = None):
         self.auth_type = auth_type
@@ -153,18 +172,7 @@ def get_legacy_verification_auth(
             headers={"Retry-After": "12"},
         )
 
-    # 1. Check for forensic audit key header
-    audit_key = request.headers.get("X-SecurePDF-Audit-Key")
-    if audit_key:
-        expected_key = config.FORENSIC_KEY
-        if not expected_key or not secrets.compare_digest(audit_key, expected_key):
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: invalid forensic audit key",
-            )
-        return LegacyVerificationAuth(auth_type="forensic_key", user=None)
-
-    # 2. Check for user session cookie
+    # 1. Check for user session cookie (authenticated session takes precedence for ownership verification)
     token = request.cookies.get(SESSION_COOKIE_NAME)
     if token:
         session = repo.get_session(token)
@@ -174,6 +182,17 @@ def get_legacy_verification_auth(
                 user = repo.get_user_by_id(session.user_id)
                 if user:
                     return LegacyVerificationAuth(auth_type="user_session", user=user)
+
+    # 2. Check for independent forensic audit key header
+    audit_key = request.headers.get("X-SecurePDF-Audit-Key")
+    if audit_key:
+        expected_key = config.FORENSIC_KEY
+        if not expected_key or not secrets.compare_digest(audit_key, expected_key):
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: invalid forensic audit key",
+            )
+        return LegacyVerificationAuth(auth_type="forensic_key", user=None)
 
     # 3. Reject unauthenticated access
     raise HTTPException(

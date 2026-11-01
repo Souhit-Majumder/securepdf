@@ -30,7 +30,27 @@ class VerificationService:
         
         if not fp_record:
             return None
-            
+
+        # Check if demonstrably linked to a batch recipient
+        rec_record = self.repo.get_recipient_by_fingerprint_id(fp_record.id)
+        if rec_record:
+            is_valid = verify_fingerprint(
+                self.master_key, document_uid, rec_record.recipient_identifier, nonce, extracted_fingerprint
+            )
+            if is_valid:
+                return {
+                    "status": "VALID",
+                    "document_uid": document_uid,
+                    "student_uid": rec_record.recipient_identifier,
+                    "student_name": rec_record.recipient_name,
+                    "recipient_name": rec_record.recipient_name,
+                    "recipient_identifier": rec_record.recipient_identifier,
+                    "nonce": nonce,
+                    "fingerprint": extracted_fingerprint
+                }
+            return None
+
+        # Legacy distribution or direct student binding
         student_record = self.repo.get_student_by_id(fp_record.student_id)
         if not student_record:
             return None
@@ -42,11 +62,15 @@ class VerificationService:
         )
         
         if is_valid:
+            # Cryptographically authentic, but not linked to a batch recipient record:
+            # Return valid cryptographic verification without recipient attribution.
             return {
                 "status": "VALID",
                 "document_uid": document_uid,
                 "student_uid": student_uid,
                 "student_name": student_record.name,
+                "recipient_name": None,
+                "recipient_identifier": None,
                 "nonce": nonce,
                 "fingerprint": extracted_fingerprint
             }
@@ -126,13 +150,30 @@ class VerificationService:
                         if doc_record:
                             fp_record = self.repo.get_fingerprint_by_doc_and_nonce(doc_record.id, nonce_hex)
                             if fp_record:
-                                student_record = self.repo.get_student_by_id(fp_record.student_id)
-                                if student_record and student_record.student_uid == rec_uid:
+                                rec_record = self.repo.get_recipient_by_fingerprint_id(fp_record.id)
+                                if rec_record and rec_record.recipient_identifier == rec_uid:
+                                    rec_name = rec_record.recipient_name
+                                    rec_ident = rec_record.recipient_identifier
+                                    stu_name = rec_record.recipient_name
+                                else:
+                                    student_record = self.repo.get_student_by_id(fp_record.student_id)
+                                    if student_record and student_record.student_uid == rec_uid:
+                                        stu_name = student_record.name
+                                        rec_name = None
+                                        rec_ident = None
+                                    else:
+                                        stu_name = None
+                                        rec_name = None
+                                        rec_ident = None
+
+                                if stu_name is not None:
                                     l3_result = {
                                         "status": "VALID",
                                         "document_uid": doc_uid,
                                         "student_uid": rec_uid,
-                                        "student_name": student_record.name,
+                                        "student_name": stu_name,
+                                        "recipient_name": rec_name,
+                                        "recipient_identifier": rec_ident,
                                         "nonce": nonce_hex,
                                         "fingerprint": hmac_tag.hex(),
                                     }

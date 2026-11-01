@@ -16,6 +16,8 @@ htmlcov/
 # Application Data & Secrets
 data/
 *.key
+.env
+.env.*
 
 # Editor & OS Artifacts
 .DS_Store

@@ -17,12 +17,17 @@ from pathlib import Path
 import threading
 import uuid
 import fitz
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from typing import Optional
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 
 from app.api.dependencies import (
     get_authenticated_forensic_context,
     get_inspection_service,
+    get_optional_user_from_session,
+    get_repository,
 )
+from app.database.repository import Repository
+from app.database.models import User
 from app.api.schemas.inspection import (
     ActiveVerificationResponseDTO,
     CarrierStatusType,
@@ -256,16 +261,20 @@ async def verify_document(
     request: Request,
     file: UploadFile = File(...),
     auth_ctx: AuthorizationContext = Depends(get_authenticated_forensic_context),
+    optional_user: Optional[User] = Depends(get_optional_user_from_session),
     inspection_service: InspectionService = Depends(get_inspection_service),
+    repo: Repository = Depends(get_repository),
 ) -> ActiveVerificationResponseDTO:
     """
     Performs active cryptographic fingerprint investigation and verification.
     Guarantees:
     - Enforces forensic key authentication and anti-oracle rate limiting.
     - Runs isolated verification pipeline while collecting bounded evidence.
+    - Enforces document ownership when authenticated user session is present.
+    - Redacts recipient PII when invoked purely via forensic audit key.
     - Cooperative cancellation via ASGI disconnect monitoring and threading.Event.
     - Best-effort temporary file cleanup.
-    - Minimized, privacy-safe response DTO without master keys, HMACs, nonces, or student PII.
+    - Minimized, privacy-safe response DTO without master keys, HMACs, or nonces.
     """
     request_id = uuid.uuid4().hex
     temp_dir = config.TEMP_DIR
@@ -310,7 +319,7 @@ async def verify_document(
 
         result_dict, report = await worker_task
 
-        # 3. Map to ActiveVerificationResponseDTO
+        # 3. Map to ActiveVerificationResponseDTO & Scoping
         verification_status = result_dict.get("status", report.overall_status)
         authenticated_layers = result_dict.get("authenticated_layers", [])
         reason = result_dict.get("reason", None)
@@ -326,6 +335,27 @@ async def verify_document(
             else None
         )
 
+        # Recipient PII Scoping and Document Ownership:
+        recipient_name: Optional[str] = None
+        recipient_identifier: Optional[str] = None
+
+        if optional_user is not None:
+            # Authenticated session: verify document ownership before releasing recipient PII
+            if document_uid:
+                doc_record = repo.get_document_by_uid(document_uid)
+                if not doc_record or doc_record.user_id != optional_user.id:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Access denied: You do not own the document carrier in this file."
+                    )
+            if verification_status == "VALID":
+                recipient_name = result_dict.get("recipient_name")
+                recipient_identifier = result_dict.get("recipient_identifier")
+        else:
+            # Independent forensic audit-key only: strictly redact recipient PII
+            recipient_name = None
+            recipient_identifier = None
+
         minimized_carriers = map_report_carriers(report.carriers)
 
         cross_layer = MinimizedCrossLayerDTO(
@@ -340,6 +370,8 @@ async def verify_document(
             reason=reason,
             document_uid=document_uid,
             subject_ref=subject_ref,
+            recipient_name=recipient_name,
+            recipient_identifier=recipient_identifier,
             carriers=minimized_carriers,
             cross_layer=cross_layer,
             timestamp=report.timestamp,

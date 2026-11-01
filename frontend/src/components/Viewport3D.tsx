@@ -27,6 +27,8 @@ interface Viewport3DProps {
   zoomLevel: number;
   cameraResetTrigger: number;
   spatialTool?: "orbit" | "pan";
+  currentPage?: number;
+  onTotalPagesChange?: (total: number) => void;
 }
 
 export const Viewport3D: React.FC<Viewport3DProps> = ({
@@ -38,6 +40,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   zoomLevel,
   cameraResetTrigger,
   spatialTool = "orbit",
+  currentPage = 1,
+  onTotalPagesChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -220,72 +224,105 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     }
   }, [cameraResetTrigger]);
 
-  // 4. Client-side PDF.js rendering to Three.js Canvas Texture (Crisp, flat, matte paper)
+  const pdfDocRef = useRef<any>(null);
+
+  const renderPageTexture = async (pdfDoc: any, pageNumber: number) => {
+    if (!paperMeshRef.current || !pdfDoc) return;
+    try {
+      const clampedPage = Math.min(Math.max(1, pageNumber), pdfDoc.numPages);
+      const page = await pdfDoc.getPage(clampedPage);
+
+      const renderScale = 2.4;
+      const viewport = page.getViewport({ scale: renderScale, rotation: page.rotate });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext("2d");
+
+      if (ctx) {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+
+        if (paperMeshRef.current) {
+          const pageIndex = clampedPage - 1;
+          const pageDim = report.page_dimensions[pageIndex];
+          const baseHeight = 3.55;
+          const aspect = pageDim ? pageDim.width / pageDim.height : viewport.width / viewport.height;
+          const paperWidth = baseHeight * aspect;
+
+          // Update geometry in-place preserving 3D scene and camera
+          paperMeshRef.current.geometry.dispose();
+          paperMeshRef.current.geometry = new THREE.BoxGeometry(paperWidth, baseHeight, 0.015);
+
+          const edgeMat = new THREE.MeshBasicMaterial({ color: 0xcbd5e1 });
+          const backMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+          const frontMat = new THREE.MeshBasicMaterial({
+            map: texture,
+            toneMapped: false,
+          });
+
+          paperMeshRef.current.material = [
+            edgeMat, // Right
+            edgeMat, // Left
+            edgeMat, // Top
+            edgeMat, // Bottom
+            frontMat, // Front
+            backMat,  // Back
+          ];
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to render page texture:", err);
+    }
+  };
+
+  // 4. Client-side PDF.js document loading and initial page render
   useEffect(() => {
-    if (!pdfFile || !paperMeshRef.current) return;
+    if (!pdfFile) {
+      pdfDocRef.current = null;
+      return;
+    }
 
     let isCancelled = false;
 
-    const renderPdfToTexture = async () => {
+    const loadAndRenderDoc = async () => {
       try {
         const fileBuffer = await pdfFile.arrayBuffer();
         const loadingTask = pdfjsLib.getDocument({ data: fileBuffer });
         const pdfDoc = await loadingTask.promise;
-        const page = await pdfDoc.getPage(1);
+        if (isCancelled) return;
+        pdfDocRef.current = pdfDoc;
 
-        // High resolution rendering for sharp document text legibility
-        const renderScale = 2.4;
-        const viewport = page.getViewport({ scale: renderScale, rotation: page.rotate });
-
-        const canvas = document.createElement("canvas");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        const ctx = canvas.getContext("2d");
-
-        if (ctx) {
-          // Fill canvas with pure white background before PDF page render
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          await page.render({ canvasContext: ctx, viewport }).promise;
-          if (isCancelled) return;
-
-          const texture = new THREE.CanvasTexture(canvas);
-          texture.colorSpace = THREE.SRGBColorSpace;
-          texture.minFilter = THREE.LinearFilter;
-          texture.magFilter = THREE.LinearFilter;
-
-          if (paperMeshRef.current) {
-            // Unlit MeshBasicMaterial: strictly preserves original PDF colors, contrast,
-            // with zero artificial gradients, specular highlights, or diagonal shading
-            const edgeMat = new THREE.MeshBasicMaterial({ color: 0xcbd5e1 });
-            const backMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            const frontMat = new THREE.MeshBasicMaterial({
-              map: texture,
-              toneMapped: false,
-            });
-
-            paperMeshRef.current.material = [
-              edgeMat, // Right
-              edgeMat, // Left
-              edgeMat, // Top
-              edgeMat, // Bottom
-              frontMat, // Front
-              backMat,  // Back
-            ];
-          }
+        if (onTotalPagesChange) {
+          onTotalPagesChange(pdfDoc.numPages);
         }
+
+        await renderPageTexture(pdfDoc, currentPage);
       } catch (err) {
         console.warn("Local PDF.js preview rendering failed; using default paper mesh:", err);
       }
     };
 
-    renderPdfToTexture();
+    loadAndRenderDoc();
 
     return () => {
       isCancelled = true;
     };
   }, [pdfFile]);
+
+  // Page turn effect: updates selected page texture and geometry without recreating scene
+  useEffect(() => {
+    if (!pdfDocRef.current || !paperMeshRef.current) return;
+    renderPageTexture(pdfDocRef.current, currentPage);
+  }, [currentPage]);
 
   // 5. Build Layer 2 Holographic Annotation Overlays on the 3D Paper
   useEffect(() => {
@@ -296,11 +333,17 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     if (!visibleLayers.annotations) return;
 
     const l2Carrier = report.carriers.find((c) => c.carrier_name === "Layer 2 (Annotations)");
-    const pageDim = report.page_dimensions[0];
+    const pageIndex = Math.max(0, (currentPage || 1) - 1);
+    const pageDim = report.page_dimensions[pageIndex] || report.page_dimensions[0];
     if (!l2Carrier || !l2Carrier.annotation_locations.length || !pageDim) return;
 
-    const paperWidth = 2.65;
+    // Associate annotations strictly with the currently viewed page
+    const pageAnnots = l2Carrier.annotation_locations.filter((annot) => annot.page_index === pageIndex);
+    if (!pageAnnots.length) return;
+
     const paperHeight = 3.55;
+    const aspect = pageDim.width / pageDim.height;
+    const paperWidth = paperHeight * aspect;
 
     const mockViewport = {
       width: pageDim.width,
@@ -319,7 +362,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       },
     };
 
-    l2Carrier.annotation_locations.forEach((annot) => {
+    pageAnnots.forEach((annot) => {
       const mapped = mapPyMuPdfToPdfJs(annot.rect, pageDim.cropbox, mockViewport);
       const planeBox = mapViewportTo3DPlane(mapped, pageDim.width, pageDim.height, paperWidth, paperHeight);
 
@@ -350,7 +393,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       const wireframe = new THREE.LineSegments(edges, lineMat);
       boxMesh.add(wireframe);
     });
-  }, [report, visibleLayers.annotations, activeLayer]);
+  }, [report, visibleLayers.annotations, activeLayer, currentPage]);
 
   // Deliberate user drag handlers for camera orbit/pan
   const handleMouseDown = (e: React.MouseEvent) => {

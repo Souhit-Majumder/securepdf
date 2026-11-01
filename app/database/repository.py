@@ -397,6 +397,31 @@ class Repository:
         conn.close()
         return [DistributionBatch(**dict(row)) for row in rows]
 
+    def get_distribution_batches_by_document(self, document_id: int) -> List[DistributionBatch]:
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM distribution_batches WHERE document_id = ? ORDER BY id DESC",
+            (document_id,)
+        )
+        rows = cursor.fetchall()
+        conn.close()
+        return [DistributionBatch(**dict(row)) for row in rows]
+
+    def get_recipient_by_fingerprint_id(self, fingerprint_id: int) -> Optional[DistributionBatchRecipient]:
+        """Retrieves a batch recipient demonstrably linked to a verified fingerprint ID."""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM distribution_batch_recipients WHERE fingerprint_id = ?",
+            (fingerprint_id,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return DistributionBatchRecipient(**dict(row))
+        return None
+
     def claim_batch_for_generation(self, batch_id: int, allow_recovery: bool = False) -> bool:
         """
         Atomically transitions a batch to 'PROCESSING' if it is in 'PENDING',

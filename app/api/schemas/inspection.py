@@ -132,6 +132,8 @@ class ActiveVerificationResponseDTO(BaseModel):
     reason: Optional[str] = Field(default=None, max_length=256)
     document_uid: Optional[str] = Field(default=None, max_length=64)
     subject_ref: Optional[str] = Field(default=None, max_length=64)
+    recipient_name: Optional[str] = Field(default=None, max_length=128)
+    recipient_identifier: Optional[str] = Field(default=None, max_length=128)
     carriers: List[MinimizedCarrierDTO] = Field(default_factory=list)
     cross_layer: MinimizedCrossLayerDTO = Field(default_factory=MinimizedCrossLayerDTO)
     timestamp: str = Field(max_length=64)

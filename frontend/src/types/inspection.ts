@@ -92,6 +92,8 @@ export interface ActiveVerificationResponseDTO {
   reason: string | null;
   document_uid: string | null;
   subject_ref: string | null;
+  recipient_name?: string | null;
+  recipient_identifier?: string | null;
   carriers: MinimizedCarrierDTO[];
   cross_layer: MinimizedCrossLayerDTO;
   timestamp: string;

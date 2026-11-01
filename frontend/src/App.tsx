@@ -16,6 +16,8 @@ import {
   Loader2,
   AlertCircle,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   InspectionResponseDTO,
@@ -61,6 +63,10 @@ export const App: React.FC = () => {
   const [spatialTool, setSpatialTool] = useState<"orbit" | "pan">("orbit");
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [cameraResetTrigger, setCameraResetTrigger] = useState<number>(0);
+
+  // Multi-page navigation state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
 
   // WebGL diagnostic probe state
   const [webglDiagnostic, setWebglDiagnostic] = useState<WebGLDiagnosticInfo | null>(null);
@@ -157,6 +163,8 @@ export const App: React.FC = () => {
     setVerificationError(null);
     setDistributionError(null);
     setActiveDocumentUid(null);
+    setCurrentPage(1);
+    setTotalPages(1);
 
     setSelectedFile(file);
     setIsLoading(true);
@@ -541,6 +549,8 @@ export const App: React.FC = () => {
                 zoomLevel={zoomLevel}
                 cameraResetTrigger={cameraResetTrigger}
                 spatialTool={spatialTool}
+                currentPage={currentPage}
+                onTotalPagesChange={setTotalPages}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-slate-500">
@@ -629,6 +639,31 @@ export const App: React.FC = () => {
                 className="p-0.5 rounded-full hover:bg-white/40 transition"
               >
                 <ZoomIn className="w-3 h-3" />
+              </button>
+            </div>
+
+            <div className="w-px h-3.5 bg-slate-300/60 mx-0.5" />
+
+            {/* Page Navigation Controls */}
+            <div className="flex items-center gap-0.5 text-[9.5px] text-slate-800 font-mono px-0.5">
+              <button
+                title="Previous Page"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="p-1 rounded-full text-slate-600 hover:text-slate-900 hover:bg-white/40 disabled:opacity-30 disabled:hover:bg-transparent transition cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-3 h-3" />
+              </button>
+              <span className="min-w-[42px] text-center font-semibold text-[9px] px-1 select-none">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                title="Next Page"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="p-1 rounded-full text-slate-600 hover:text-slate-900 hover:bg-white/40 disabled:opacity-30 disabled:hover:bg-transparent transition cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-3 h-3" />
               </button>
             </div>
 
