@@ -32,6 +32,7 @@ from app.inspection.models import (
 from app.inspection.pdf_inspector import PdfStructuralInspector
 from app.pdf.embed import embed_payload
 from app.pdf.processor import save_pdf
+from app.pdf.stego.extract import extract_bits_from_stream, MIN_KERNING_THRESHOLD
 from app.services.verification_service import VerificationService
 
 
@@ -103,6 +104,53 @@ class InspectionService:
             auth_ctx=auth,
             telemetry_source="ACTIVE_VERIFICATION",
         )
+
+        # Enrich Layer 3 carrier with localized modulation samples if carrier was decoded
+        for carrier in report.carriers:
+            if carrier.carrier_name == "Layer 3 (Stego Kerning)" and not carrier.modulation_samples:
+                if carrier.status in ("VALID", "STRUCTURALLY_DECODED"):
+                    try:
+                        doc = fitz.open(pdf_path)
+                        try:
+                            bit_len = carrier.modulated_word_gaps or 224
+                            samples = []
+                            loc_counter = 0
+                            bits_remaining = bit_len
+
+                            for p_idx in range(doc.page_count):
+                                if bits_remaining <= 0 or len(samples) >= 40:
+                                    break
+                                page = doc[p_idx]
+                                c_xrefs = page.get_contents()
+                                page_carrier_gaps = 0
+                                for xref in c_xrefs:
+                                    st = doc.xref_stream(xref)
+                                    if st:
+                                        page_carrier_gaps += len(extract_bits_from_stream(st, threshold=MIN_KERNING_THRESHOLD))
+                                if page_carrier_gaps == 0:
+                                    continue
+
+                                page_carrier_bits = min(page_carrier_gaps, bits_remaining)
+                                page_sample_limit = min(8, 40 - len(samples), page_carrier_bits)
+                                page_samples = self.inspector.get_page_modulations(
+                                    doc,
+                                    page_index=p_idx,
+                                    offset=0,
+                                    limit=page_sample_limit,
+                                    is_framed=True,
+                                    start_location_idx=loc_counter,
+                                    max_carrier_bits=page_carrier_bits,
+                                )
+                                samples.extend(page_samples)
+                                loc_counter += len(page_samples)
+                                bits_remaining -= page_carrier_bits
+
+                            carrier.modulation_samples = samples
+                            carrier.locations = [s.location for s in samples]
+                        finally:
+                            doc.close()
+                    except Exception:
+                        pass
 
         return result_dict, report
 

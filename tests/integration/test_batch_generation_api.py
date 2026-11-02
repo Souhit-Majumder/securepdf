@@ -241,10 +241,10 @@ def test_generate_batch_partial_failure_and_retry(client, monkeypatch):
 
     fail_faulty = True
 
-    def selective_embed(self, doc_uid, student_uid, nonce, fp, in_p, out_p):
+    def selective_embed(self, doc_uid, student_uid, nonce, fp, in_p, out_p, *args, **kwargs):
         if student_uid == "STU-FAULTY" and fail_faulty:
             raise ValueError("Simulated PDF Watermarking Failure for Faulty Recipient")
-        return original_embed(self, doc_uid, student_uid, nonce, fp, in_p, out_p)
+        return original_embed(self, doc_uid, student_uid, nonce, fp, in_p, out_p, *args, **kwargs)
 
     monkeypatch.setattr(FingerprintService, "embed_and_save_pdf", selective_embed)
 

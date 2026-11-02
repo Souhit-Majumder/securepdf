@@ -328,7 +328,8 @@ class Repository:
         user_id: int,
         document_id: int,
         expiry_duration_seconds: int,
-        recipients_data: List[dict]
+        recipients_data: List[dict],
+        enable_stego: bool = False
     ) -> DistributionBatch:
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -336,10 +337,10 @@ class Repository:
             cursor.execute(
                 """
                 INSERT INTO distribution_batches 
-                (batch_uid, user_id, document_id, total_recipients, expiry_duration_seconds, status)
-                VALUES (?, ?, ?, ?, ?, 'PENDING')
+                (batch_uid, user_id, document_id, total_recipients, expiry_duration_seconds, status, enable_stego)
+                VALUES (?, ?, ?, ?, ?, 'PENDING', ?)
                 """,
-                (batch_uid, user_id, document_id, len(recipients_data), expiry_duration_seconds)
+                (batch_uid, user_id, document_id, len(recipients_data), expiry_duration_seconds, 1 if enable_stego else 0)
             )
             batch_id = cursor.lastrowid
             
@@ -350,8 +351,8 @@ class Repository:
                 cursor.execute(
                     """
                     INSERT INTO distribution_batch_recipients
-                    (batch_id, student_id, recipient_name, recipient_identifier, status)
-                    VALUES (?, ?, ?, ?, 'PENDING')
+                    (batch_id, student_id, recipient_name, recipient_identifier, status, stego_status)
+                    VALUES (?, ?, ?, ?, 'PENDING', 'PENDING')
                     """,
                     (batch_id, student_id, name, identifier)
                 )
@@ -492,7 +493,8 @@ class Repository:
         fingerprint_hex: str,
         generated_at: str,
         expires_at: str,
-        download_token: str
+        download_token: str,
+        stego_status: str = "SKIPPED",
     ) -> int:
         """
         Atomically commits the carrier fingerprint and links it to the batch recipient.
@@ -516,10 +518,11 @@ class Repository:
                     fingerprint_id = ?,
                     generated_at = ?,
                     expires_at = ?,
-                    download_token = ?
+                    download_token = ?,
+                    stego_status = ?
                 WHERE id = ?
                 """,
-                (fp_id, generated_at, expires_at, download_token, recipient_id)
+                (fp_id, generated_at, expires_at, download_token, stego_status, recipient_id)
             )
             conn.commit()
             conn.close()
@@ -534,34 +537,23 @@ class Repository:
         recipient_id: int,
         generated_at: str,
         expires_at: str,
-        download_token: Optional[str] = None
+        download_token: Optional[str] = None,
+        stego_status: Optional[str] = None,
     ) -> None:
         """Updates recipient status to GENERATED without creating a new fingerprint record, preserving or setting download_token."""
         conn = self._get_conn()
         cursor = conn.cursor()
+        query = "UPDATE distribution_batch_recipients SET status = 'GENERATED', generated_at = ?, expires_at = ?"
+        params = [generated_at, expires_at]
         if download_token:
-            cursor.execute(
-                """
-                UPDATE distribution_batch_recipients
-                SET status = 'GENERATED',
-                    generated_at = ?,
-                    expires_at = ?,
-                    download_token = COALESCE(download_token, ?)
-                WHERE id = ?
-                """,
-                (generated_at, expires_at, download_token, recipient_id)
-            )
-        else:
-            cursor.execute(
-                """
-                UPDATE distribution_batch_recipients
-                SET status = 'GENERATED',
-                    generated_at = ?,
-                    expires_at = ?
-                WHERE id = ?
-                """,
-                (generated_at, expires_at, recipient_id)
-            )
+            query += ", download_token = COALESCE(download_token, ?)"
+            params.append(download_token)
+        if stego_status:
+            query += ", stego_status = ?"
+            params.append(stego_status)
+        query += " WHERE id = ?"
+        params.append(recipient_id)
+        cursor.execute(query, tuple(params))
         conn.commit()
         conn.close()
 
@@ -579,11 +571,11 @@ class Repository:
                 r.recipient_name as r_recipient_name, r.recipient_identifier as r_recipient_identifier,
                 r.status as r_status, r.created_at as r_created_at, r.generated_at as r_generated_at,
                 r.expires_at as r_expires_at, r.fingerprint_id as r_fingerprint_id,
-                r.download_token as r_download_token,
+                r.download_token as r_download_token, r.stego_status as r_stego_status,
                 b.id as b_id, b.batch_uid as b_batch_uid, b.user_id as b_user_id,
                 b.document_id as b_document_id, b.total_recipients as b_total_recipients,
                 b.expiry_duration_seconds as b_expiry_duration_seconds, b.status as b_status,
-                b.created_at as b_created_at,
+                b.enable_stego as b_enable_stego, b.created_at as b_created_at,
                 d.id as d_id, d.document_uid as d_document_uid, d.original_filename as d_original_filename,
                 d.user_id as d_user_id, d.created_at as d_created_at
             FROM distribution_batch_recipients r
@@ -610,6 +602,7 @@ class Repository:
             expires_at=row["r_expires_at"],
             fingerprint_id=row["r_fingerprint_id"],
             download_token=row["r_download_token"],
+            stego_status=row["r_stego_status"] if "r_stego_status" in row.keys() else "PENDING",
         )
         batch = DistributionBatch(
             id=row["b_id"],
@@ -620,6 +613,7 @@ class Repository:
             expiry_duration_seconds=row["b_expiry_duration_seconds"],
             status=row["b_status"],
             created_at=row["b_created_at"],
+            enable_stego=bool(row["b_enable_stego"]) if "b_enable_stego" in row.keys() else False,
         )
         doc = Document(
             id=row["d_id"],
@@ -663,14 +657,20 @@ class Repository:
         conn.close()
         return [(r["id"], r["batch_uid"], r["status"]) for r in rows]
 
-    def record_recipient_failure(self, recipient_id: int) -> None:
+    def record_recipient_failure(self, recipient_id: int, stego_status: Optional[str] = None) -> None:
         """Marks recipient as FAILED without inserting fingerprint row."""
         conn = self._get_conn()
         cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE distribution_batch_recipients SET status = 'FAILED' WHERE id = ?",
-            (recipient_id,)
-        )
+        if stego_status:
+            cursor.execute(
+                "UPDATE distribution_batch_recipients SET status = 'FAILED', stego_status = ? WHERE id = ?",
+                (stego_status, recipient_id)
+            )
+        else:
+            cursor.execute(
+                "UPDATE distribution_batch_recipients SET status = 'FAILED' WHERE id = ?",
+                (recipient_id,)
+            )
         conn.commit()
         conn.close()
 

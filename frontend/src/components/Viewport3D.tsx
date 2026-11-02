@@ -30,6 +30,8 @@ interface Viewport3DProps {
   currentPage?: number;
   onTotalPagesChange?: (total: number) => void;
   selectedAnnotationXref?: number | null;
+  selectedKerningLocationIndex?: number | null;
+  onSelectKerningLocation?: (index: number | null) => void;
 }
 
 export const Viewport3D: React.FC<Viewport3DProps> = ({
@@ -44,6 +46,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   currentPage = 1,
   onTotalPagesChange,
   selectedAnnotationXref = null,
+  selectedKerningLocationIndex = null,
+  onSelectKerningLocation,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -51,6 +55,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const paperMeshRef = useRef<THREE.Mesh | null>(null);
   const annotationGroupRef = useRef<THREE.Group | null>(null);
+  const kerningGroupRef = useRef<THREE.Group | null>(null);
 
   // Mouse interaction state for orbital controls (Strictly stable, zero drift)
   const isDragging = useRef(false);
@@ -162,6 +167,11 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     const annotationGroup = new THREE.Group();
     paperMesh.add(annotationGroup);
     annotationGroupRef.current = annotationGroup;
+
+    // Layer 3 Kerning Caliper marker group anchored directly to the paper face
+    const kerningGroup = new THREE.Group();
+    paperMesh.add(kerningGroup);
+    kerningGroupRef.current = kerningGroup;
 
     // Animation Loop with precise convergence (zero drift after reaching target)
     let animationFrameId: number;
@@ -419,6 +429,103 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     });
   }, [report, visibleLayers.annotations, activeLayer, currentPage, selectedAnnotationXref]);
 
+  // 6. Build Layer 3 Subtle Caliper Markers on the 3D Paper
+  useEffect(() => {
+    if (!kerningGroupRef.current) return;
+    const group = kerningGroupRef.current;
+    group.clear();
+
+    if (!visibleLayers.textStream) return;
+
+    const l3Carrier = report.carriers.find((c) => c.carrier_name === "Layer 3 (Stego Kerning)");
+    const pageIndex = Math.max(0, (currentPage || 1) - 1);
+    const pageDim = report.page_dimensions[pageIndex] || report.page_dimensions[0];
+    if (!l3Carrier || !l3Carrier.content_stream_locations.length || !pageDim) return;
+
+    const pageLocations = l3Carrier.content_stream_locations.filter(
+      (loc) => loc.page_index === pageIndex && loc.rect && loc.localization_status !== "UNAVAILABLE"
+    );
+    if (!pageLocations.length) return;
+
+    const paperHeight = 3.55;
+    const aspect = pageDim.width / pageDim.height;
+    const paperWidth = paperHeight * aspect;
+
+    const mockViewport = {
+      width: pageDim.width,
+      height: pageDim.height,
+      rotation: pageDim.rotation,
+      convertToViewportPoint: (x: number, y: number) => {
+        return [x - pageDim.cropbox[0], pageDim.cropbox[3] - y] as [number, number];
+      },
+      convertToViewportRectangle: (rect: [number, number, number, number]) => {
+        return [
+          rect[0] - pageDim.cropbox[0],
+          pageDim.cropbox[3] - rect[3],
+          rect[2] - pageDim.cropbox[0],
+          pageDim.cropbox[3] - rect[1],
+        ] as [number, number, number, number];
+      },
+    };
+
+    pageLocations.forEach((loc) => {
+      if (!loc.rect) return;
+      const isSelected = selectedKerningLocationIndex === loc.location_index;
+      const isApprox = loc.localization_status === "APPROXIMATE";
+
+      const mapped = mapPyMuPdfToPdfJs(loc.rect, pageDim.cropbox, mockViewport);
+      const planeBox = mapViewportTo3DPlane(mapped, pageDim.width, pageDim.height, paperWidth, paperHeight);
+
+      // Subtle caliper box dimensions
+      const calWidth = Math.max(planeBox.size[0], 0.08);
+      const calHeight = Math.max(planeBox.size[1], 0.12);
+
+      const calGeo = new THREE.PlaneGeometry(calWidth, calHeight);
+
+      // Subtle cyan/blue styling: #0ea5e9, selected #38bdf8. Zero violet!
+      const calColor = isSelected ? 0x38bdf8 : (isApprox ? 0x0284c7 : 0x0ea5e9);
+      const calOpacity = isSelected ? 0.35 : (activeLayer === 2 ? 0.14 : 0.08);
+      const zOffset = isSelected ? 0.016 : 0.011;
+
+      const calMat = new THREE.MeshBasicMaterial({
+        color: calColor,
+        transparent: true,
+        opacity: calOpacity,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+
+      const calMesh = new THREE.Mesh(calGeo, calMat);
+      calMesh.position.set(planeBox.center[0], planeBox.center[1], zOffset);
+      group.add(calMesh);
+
+      // Outline wireframe
+      const edges = new THREE.EdgesGeometry(calGeo);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: calColor,
+        linewidth: isSelected ? 2.0 : 1.0,
+        transparent: true,
+        opacity: isSelected ? 0.95 : (activeLayer === 2 ? 0.70 : 0.40),
+      });
+      const wireframe = new THREE.LineSegments(edges, lineMat);
+      calMesh.add(wireframe);
+
+      // Distinct reticle when selected
+      if (isSelected) {
+        const reticleGeo = new THREE.PlaneGeometry(calWidth + 0.04, calHeight + 0.03);
+        const reticleEdges = new THREE.EdgesGeometry(reticleGeo);
+        const reticleLineMat = new THREE.LineBasicMaterial({
+          color: 0x38bdf8,
+          linewidth: 1.5,
+          transparent: true,
+          opacity: 0.90,
+        });
+        const outerReticle = new THREE.LineSegments(reticleEdges, reticleLineMat);
+        calMesh.add(outerReticle);
+      }
+    });
+  }, [report, visibleLayers.textStream, activeLayer, currentPage, selectedKerningLocationIndex]);
+
   // Deliberate user drag handlers for camera orbit/pan
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -543,6 +650,9 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
           onClick={(e) => {
             e.stopPropagation();
             onSelectLayer(2);
+            if (l3Sample && onSelectKerningLocation) {
+              onSelectKerningLocation(l3Sample.location_index);
+            }
           }}
           className={`absolute bottom-[18%] left-[28%] z-20 cursor-pointer group transition-all duration-200 ${
             activeLayer === 2 ? "scale-[1.02]" : "hover:scale-[1.01]"
@@ -564,11 +674,11 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
               </div>
             </div>
 
-            {/* Honest Telemetry Overlay */}
+            {/* Carrier Telemetry Overlay */}
             <div className="absolute bottom-2.5 inset-x-2 text-center pointer-events-none">
               {l3Sample ? (
                 <div className="text-[9.5px] font-mono font-bold text-sky-950 bg-white/70 backdrop-blur-xs rounded-full px-2 py-0.5 inline-block shadow-xs border border-white/80">
-                  {l3Sample.displacement} pt • bit {l3Sample.bit_value ?? "0"}
+                  Carrier #{l3Sample.location_index + 1} • {l3Sample.localization_status}
                 </div>
               ) : l3Carrier?.status === "OBSERVED_SYNTAX" ? (
                 <div className="text-[9px] font-medium text-amber-950 bg-amber-500/15 backdrop-blur-xs rounded-full px-2 py-0.5 inline-block border border-amber-400/30">

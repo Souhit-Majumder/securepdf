@@ -71,6 +71,9 @@ export const App: React.FC = () => {
   // Layer 2 annotation localization state
   const [selectedAnnotationXref, setSelectedAnnotationXref] = useState<number | null>(null);
 
+  // Layer 3 carrier location localization state (independent of Layer 2)
+  const [selectedKerningLocationIndex, setSelectedKerningLocationIndex] = useState<number | null>(null);
+
   // WebGL diagnostic probe state
   const [webglDiagnostic, setWebglDiagnostic] = useState<WebGLDiagnosticInfo | null>(null);
 
@@ -169,6 +172,7 @@ export const App: React.FC = () => {
     setCurrentPage(1);
     setTotalPages(1);
     setSelectedAnnotationXref(null);
+    setSelectedKerningLocationIndex(null);
 
     setSelectedFile(file);
     setIsLoading(true);
@@ -556,6 +560,8 @@ export const App: React.FC = () => {
                 currentPage={currentPage}
                 onTotalPagesChange={setTotalPages}
                 selectedAnnotationXref={selectedAnnotationXref}
+                selectedKerningLocationIndex={selectedKerningLocationIndex}
+                onSelectKerningLocation={setSelectedKerningLocationIndex}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-slate-500">
@@ -585,6 +591,8 @@ export const App: React.FC = () => {
               onSetForensicKey={setForensicKey}
               selectedAnnotationXref={selectedAnnotationXref}
               onSelectAnnotation={setSelectedAnnotationXref}
+              selectedKerningLocationIndex={selectedKerningLocationIndex}
+              onSelectKerningLocation={setSelectedKerningLocationIndex}
               onPageChange={setCurrentPage}
               currentPage={currentPage}
             />

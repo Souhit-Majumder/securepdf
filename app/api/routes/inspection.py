@@ -45,6 +45,7 @@ from app.inspection.models import (
     AnnotationLocation,
     AuthorizationContext,
     CatalogLocation,
+    ContentStreamLocation,
 )
 from app.inspection.pdf_inspector import PdfStructuralInspector
 from app.inspection.service import InspectionService
@@ -114,18 +115,28 @@ def map_report_carriers(carriers: list) -> list[MinimizedCarrierDTO]:
                     )
                 )
 
-        if carrier.modulation_samples:
-            for sample in carrier.modulation_samples:
-                s_loc = sample.location
+        if carrier.status in ("VALID", "STRUCTURALLY_DECODED"):
+            samples_to_serialize = []
+            if carrier.modulation_samples:
+                samples_to_serialize = [s.location for s in carrier.modulation_samples]
+            elif carrier.locations:
+                samples_to_serialize = [loc for loc in carrier.locations if isinstance(loc, ContentStreamLocation)]
+
+            for idx, s_loc in enumerate(samples_to_serialize):
+                if not getattr(s_loc, "is_carrier_sample", True):
+                    continue
+                loc_idx = getattr(s_loc, "location_index", idx)
+                loc_status = getattr(s_loc, "localization_status", "UNAVAILABLE")
+                is_sample = getattr(s_loc, "is_carrier_sample", True)
+                rect_val = getattr(s_loc, "rect", None)
                 stream_locs.append(
                     MinimizedContentStreamLocationDTO(
                         carrier_type="CONTENT_STREAM",
                         page_index=s_loc.page_index,
-                        content_stream_xref=s_loc.content_stream_xref,
-                        gap_index=s_loc.gap_index,
-                        displacement=s_loc.displacement,
-                        bit_value=s_loc.bit_value,
-                        is_intentional=sample.is_intentional_modulation,
+                        location_index=loc_idx,
+                        localization_status=loc_status,
+                        is_carrier_sample=is_sample,
+                        rect=rect_val,
                     )
                 )
 

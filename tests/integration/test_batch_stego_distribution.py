@@ -106,6 +106,7 @@ def test_batch_generate_three_layer_success(test_setup, monkeypatch):
         f"/documents/{doc_uid}/batches",
         json={
             "expiry_duration_seconds": 300,
+            "enable_stego": True,
             "recipients": [
                 {"name": "Alice Student", "student_uid": "STU-001"},
                 {"name": "Bob Student", "student_uid": "STU-002"},
@@ -113,12 +114,18 @@ def test_batch_generate_three_layer_success(test_setup, monkeypatch):
         }
     )
     assert batch_res.status_code == 201
-    batch_uid = batch_res.json()["batch_uid"]
+    batch_data = batch_res.json()
+    assert batch_data["enable_stego"] is True
+    assert batch_data["stego_status"] == "PENDING"
+    assert all(r["stego_status"] == "PENDING" for r in batch_data["recipients"])
+    batch_uid = batch_data["batch_uid"]
 
     gen_res = client.post(f"/documents/batches/{batch_uid}/generate?sync=true")
     assert gen_res.status_code == 200
     data = gen_res.json()
     assert data["status"] == "COMPLETED"
+    assert data["stego_status"] == "SUCCESS"
+    assert all(r["stego_status"] == "SUCCESS" for r in data["recipients"])
 
     batch_dir = config.OUTPUT_DIR / "batches" / batch_uid
     ver_service = VerificationService(repo=test_setup["repo"])
@@ -150,6 +157,7 @@ def test_independent_layer3_fingerprints_across_recipients(test_setup, monkeypat
         f"/documents/{doc_uid}/batches",
         json={
             "expiry_duration_seconds": 300,
+            "enable_stego": True,
             "recipients": [
                 {"name": "Student One", "student_uid": "STU-ALPHA"},
                 {"name": "Student Two", "student_uid": "STU-BETA"},
@@ -211,6 +219,8 @@ def test_batch_generate_insufficient_capacity_fallback(test_setup, monkeypatch):
 
     assert gen_res.status_code == 200
     assert gen_res.json()["status"] == "COMPLETED"
+    assert gen_res.json()["stego_status"] == "SKIPPED"
+    assert gen_res.json()["recipients"][0]["stego_status"] == "SKIPPED"
 
     batch_dir = config.OUTPUT_DIR / "batches" / batch_uid
     files = list(batch_dir.glob("rec_*.pdf"))
@@ -243,6 +253,7 @@ def test_unexpected_embedding_failure_handling(test_setup, monkeypatch):
         f"/documents/{doc_uid}/batches",
         json={
             "expiry_duration_seconds": 300,
+            "enable_stego": True,
             "recipients": [
                 {"name": "Fail Recipient", "student_uid": "STU-FAIL"},
             ]
@@ -257,7 +268,9 @@ def test_unexpected_embedding_failure_handling(test_setup, monkeypatch):
     assert gen_res.status_code == 200
     data = gen_res.json()
     assert data["status"] == "FAILED"
+    assert data["stego_status"] == "FAILED"
     assert data["recipients"][0]["status"] == "FAILED"
+    assert data["recipients"][0]["stego_status"] == "FAILED"
 
     batch_dir = config.OUTPUT_DIR / "batches" / batch_uid
     # Verify no temp or final file remains for this failed recipient
@@ -281,6 +294,7 @@ def test_post_generation_verification_hmac_failure(test_setup, monkeypatch):
         f"/documents/{doc_uid}/batches",
         json={
             "expiry_duration_seconds": 300,
+            "enable_stego": True,
             "recipients": [
                 {"name": "Corrupt Recipient", "student_uid": "STU-CORRUPT"},
             ]
@@ -302,7 +316,9 @@ def test_post_generation_verification_hmac_failure(test_setup, monkeypatch):
 
     assert gen_res.status_code == 200
     assert gen_res.json()["status"] == "FAILED"
+    assert gen_res.json()["stego_status"] == "FAILED"
     assert gen_res.json()["recipients"][0]["status"] == "FAILED"
+    assert gen_res.json()["recipients"][0]["stego_status"] == "FAILED"
 
     batch_dir = config.OUTPUT_DIR / "batches" / batch_uid
     assert len(list(batch_dir.glob("*.pdf"))) == 0
@@ -324,6 +340,7 @@ def test_layer1_and_layer2_unimpaired_by_stego(test_setup, monkeypatch):
         f"/documents/{doc_uid}/batches",
         json={
             "expiry_duration_seconds": 300,
+            "enable_stego": True,
             "recipients": [
                 {"name": "Unimpaired Recipient", "student_uid": "STU-UNIMPAIRED"},
             ]
@@ -377,6 +394,7 @@ def test_batch_retry_and_recovery_with_stego(test_setup, monkeypatch):
         f"/documents/{doc_uid}/batches",
         json={
             "expiry_duration_seconds": 300,
+            "enable_stego": True,
             "recipients": [
                 {"name": "Retry Recipient", "student_uid": "STU-RETRY"},
             ]
@@ -408,6 +426,8 @@ def test_batch_retry_and_recovery_with_stego(test_setup, monkeypatch):
     retry_res = client.post(f"/documents/batches/{batch_uid}/generate?sync=true")
     assert retry_res.status_code == 200
     assert retry_res.json()["status"] == "COMPLETED"
+    assert retry_res.json()["stego_status"] == "SUCCESS"
+    assert retry_res.json()["recipients"][0]["stego_status"] == "SUCCESS"
 
     # Verify file is generated
     files = list(batch_dir.glob("rec_*.pdf"))
@@ -436,6 +456,7 @@ def test_forensic_recipient_attribution_all_three_layers(test_setup, monkeypatch
         f"/documents/{doc_uid}/batches",
         json={
             "expiry_duration_seconds": 300,
+            "enable_stego": True,
             "recipients": [
                 {"name": "Charlie Student", "student_uid": "STU-CHARLIE-003"},
             ]
@@ -477,6 +498,7 @@ def test_preservation_of_existing_final_path_when_regeneration_fails(test_setup,
         f"/documents/{doc_uid}/batches",
         json={
             "expiry_duration_seconds": 300,
+            "enable_stego": True,
             "recipients": [
                 {"name": "Preserve Recipient", "student_uid": "STU-PRESERVE"},
             ]
@@ -497,7 +519,7 @@ def test_preservation_of_existing_final_path_when_regeneration_fails(test_setup,
     final_file.write_bytes(corrupt_bytes)
 
     conn = repo._get_conn()
-    conn.execute("UPDATE distribution_batch_recipients SET status = 'FAILED' WHERE id = ?", (recipients[0].id,))
+    conn.execute("UPDATE distribution_batch_recipients SET status = 'FAILED', stego_status = 'FAILED' WHERE id = ?", (recipients[0].id,))
     conn.execute("UPDATE distribution_batches SET status = 'FAILED' WHERE id = ?", (batch.id,))
     conn.commit()
     conn.close()
@@ -512,3 +534,313 @@ def test_preservation_of_existing_final_path_when_regeneration_fails(test_setup,
     # Assert final_file was PRESERVED for investigation and NOT deleted!
     assert final_file.exists()
     assert final_file.read_bytes() == corrupt_bytes
+
+
+def test_batch_generate_insufficient_capacity_fails_when_opted_in(test_setup, monkeypatch):
+    """
+    Asserts that when ENABLE_STEGO_CARRIER = True AND enable_stego = True on a low-capacity document:
+    - Embedding fails due to insufficient document capacity.
+    - Recipient is marked FAILED with stego_status == "FAILED".
+    - Batch is marked FAILED with stego_status == "FAILED".
+    - Capacity deficit is never silently converted to SKIPPED.
+    """
+    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
+    client = test_setup["client"]
+
+    _register_and_login(client, "prof_small_optin@test.com", "prof_small_optin")
+    pdf_bytes = _create_small_text_pdf_bytes()
+    doc_uid = _upload_pdf(client, pdf_bytes, "SmallOptIn.pdf")
+
+    batch_res = client.post(
+        f"/documents/{doc_uid}/batches",
+        json={
+            "expiry_duration_seconds": 300,
+            "enable_stego": True,
+            "recipients": [
+                {"name": "Student LowCap", "student_uid": "STU-LOWCAP"},
+            ]
+        }
+    )
+    assert batch_res.status_code == 201
+    batch_uid = batch_res.json()["batch_uid"]
+
+    gen_res = client.post(f"/documents/batches/{batch_uid}/generate?sync=true")
+    assert gen_res.status_code == 200
+    data = gen_res.json()
+    assert data["status"] == "FAILED"
+    assert data["stego_status"] == "FAILED"
+    assert len(data["recipients"]) == 1
+    assert data["recipients"][0]["status"] == "FAILED"
+    assert data["recipients"][0]["stego_status"] == "FAILED"
+
+    repo = test_setup["repo"]
+    batch = repo.get_distribution_batch_by_uid(batch_uid)
+    recipients = repo.get_batch_recipients(batch.id)
+    assert len(recipients) == 1
+    assert recipients[0].status == "FAILED"
+    assert recipients[0].stego_status == "FAILED"
+
+    batch_dir = config.OUTPUT_DIR / "batches" / batch_uid
+    assert len(list(batch_dir.glob("*.pdf"))) == 0
+
+
+def test_batch_default_skips_layer3_when_global_flag_true(test_setup, monkeypatch):
+    """
+    Asserts that when ENABLE_STEGO_CARRIER = True but per-distribution opt-in is False/omitted:
+    - Generation succeeds with Layer 1 and Layer 2.
+    - Recipient stego_status is SKIPPED.
+    - Batch stego_status is SKIPPED.
+    - Layer 3 is NOT embedded.
+    """
+    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
+    client = test_setup["client"]
+
+    _register_and_login(client, "prof_no_optin@test.com", "prof_no_optin")
+    pdf_bytes = _create_large_text_pdf_bytes()
+    doc_uid = _upload_pdf(client, pdf_bytes, "NoOptIn.pdf")
+
+    batch_res = client.post(
+        f"/documents/{doc_uid}/batches",
+        json={
+            "expiry_duration_seconds": 300,
+            "enable_stego": False,
+            "recipients": [
+                {"name": "No OptIn Recipient", "student_uid": "STU-NO-OPTIN"},
+            ]
+        }
+    )
+    assert batch_res.status_code == 201
+    assert batch_res.json()["enable_stego"] is False
+    assert batch_res.json()["stego_status"] == "PENDING"
+    assert batch_res.json()["recipients"][0]["stego_status"] == "PENDING"
+
+    batch_uid = batch_res.json()["batch_uid"]
+    gen_res = client.post(f"/documents/batches/{batch_uid}/generate?sync=true")
+    assert gen_res.status_code == 200
+    data = gen_res.json()
+    assert data["status"] == "COMPLETED"
+    assert data["stego_status"] == "SKIPPED"
+    assert data["recipients"][0]["status"] == "GENERATED"
+    assert data["recipients"][0]["stego_status"] == "SKIPPED"
+
+    batch_dir = config.OUTPUT_DIR / "batches" / batch_uid
+    files = list(batch_dir.glob("rec_*.pdf"))
+    assert len(files) == 1
+
+    ver_service = VerificationService(repo=test_setup["repo"])
+    res = ver_service.investigate_pdf(str(files[0]))
+    assert res["status"] == "VALID"
+    assert res["authenticated_layers"] == ["Layer 1", "Layer 2"]
+    assert "Layer 3" not in res["authenticated_layers"]
+
+
+def test_batch_opt_in_blocked_when_global_flag_false(test_setup, monkeypatch):
+    """
+    Asserts that when ENABLE_STEGO_CARRIER = False (default safeguard) even if per-distribution
+    opt-in is True:
+    - Layer 3 embedding is blocked by the global flag safeguard.
+    - Recipient stego_status is SKIPPED.
+    - Batch stego_status is SKIPPED.
+    - Output PDF contains Layer 1 and Layer 2 only.
+    """
+    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", False)
+    client = test_setup["client"]
+
+    _register_and_login(client, "prof_global_false@test.com", "prof_global_false")
+    pdf_bytes = _create_large_text_pdf_bytes()
+    doc_uid = _upload_pdf(client, pdf_bytes, "GlobalFalse.pdf")
+
+    batch_res = client.post(
+        f"/documents/{doc_uid}/batches",
+        json={
+            "expiry_duration_seconds": 300,
+            "enable_stego": True,
+            "recipients": [
+                {"name": "Blocked Recipient", "student_uid": "STU-BLOCKED"},
+            ]
+        }
+    )
+    assert batch_res.status_code == 201
+    assert batch_res.json()["enable_stego"] is True
+
+    batch_uid = batch_res.json()["batch_uid"]
+    gen_res = client.post(f"/documents/batches/{batch_uid}/generate?sync=true")
+    assert gen_res.status_code == 200
+    data = gen_res.json()
+    assert data["status"] == "COMPLETED"
+    assert data["stego_status"] == "SKIPPED"
+    assert data["recipients"][0]["stego_status"] == "SKIPPED"
+
+    batch_dir = config.OUTPUT_DIR / "batches" / batch_uid
+    files = list(batch_dir.glob("rec_*.pdf"))
+    assert len(files) == 1
+
+    ver_service = VerificationService(repo=test_setup["repo"])
+    res = ver_service.investigate_pdf(str(files[0]))
+    assert res["status"] == "VALID"
+    assert res["authenticated_layers"] == ["Layer 1", "Layer 2"]
+    assert "Layer 3" not in res["authenticated_layers"]
+
+
+def test_recipient_pending_stego_status_on_creation(test_setup, monkeypatch):
+    """
+    Asserts that newly created batch and its recipients start with PENDING stego_status
+    before generation is executed.
+    """
+    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
+    client = test_setup["client"]
+
+    _register_and_login(client, "pending_prof@test.com", "pending_prof")
+    pdf_bytes = _create_large_text_pdf_bytes()
+    doc_uid = _upload_pdf(client, pdf_bytes, "PendingDoc.pdf")
+
+    batch_res = client.post(
+        f"/documents/{doc_uid}/batches",
+        json={
+            "expiry_duration_seconds": 300,
+            "enable_stego": True,
+            "recipients": [
+                {"name": "Pending R1", "student_uid": "STU-P1"},
+                {"name": "Pending R2", "student_uid": "STU-P2"},
+            ]
+        }
+    )
+    assert batch_res.status_code == 201
+    data = batch_res.json()
+    assert data["stego_status"] == "PENDING"
+    assert len(data["recipients"]) == 2
+    for r in data["recipients"]:
+        assert r["stego_status"] == "PENDING"
+
+    batch_uid = data["batch_uid"]
+    get_res = client.get(f"/documents/batches/{batch_uid}")
+    assert get_res.status_code == 200
+    get_data = get_res.json()
+    assert get_data["stego_status"] == "PENDING"
+    for r in get_data["recipients"]:
+        assert r["stego_status"] == "PENDING"
+
+
+def test_batch_partial_stego_status_aggregation(test_setup, monkeypatch):
+    """
+    Asserts batch aggregation:
+    - Mixture of SUCCESS and SKIPPED recipients produces PARTIAL batch stego_status.
+    """
+    client = test_setup["client"]
+    repo = test_setup["repo"]
+
+    _register_and_login(client, "partial_prof@test.com", "partial_prof")
+    pdf_bytes = _create_large_text_pdf_bytes()
+    doc_uid = _upload_pdf(client, pdf_bytes, "PartialDoc.pdf")
+
+    batch_res = client.post(
+        f"/documents/{doc_uid}/batches",
+        json={
+            "expiry_duration_seconds": 300,
+            "enable_stego": True,
+            "recipients": [
+                {"name": "R1", "student_uid": "STU-R1"},
+                {"name": "R2", "student_uid": "STU-R2"},
+            ]
+        }
+    )
+    batch_uid = batch_res.json()["batch_uid"]
+    batch = repo.get_distribution_batch_by_uid(batch_uid)
+    recipients = repo.get_batch_recipients(batch.id)
+
+    # Manually update recipient stego_statuses: one SUCCESS, one SKIPPED
+    conn = repo._get_conn()
+    conn.execute(
+        "UPDATE distribution_batch_recipients SET status = 'GENERATED', stego_status = 'SUCCESS' WHERE id = ?",
+        (recipients[0].id,)
+    )
+    conn.execute(
+        "UPDATE distribution_batch_recipients SET status = 'GENERATED', stego_status = 'SKIPPED' WHERE id = ?",
+        (recipients[1].id,)
+    )
+    conn.commit()
+    conn.close()
+
+    get_res = client.get(f"/documents/batches/{batch_uid}")
+    assert get_res.status_code == 200
+    data = get_res.json()
+    assert data["stego_status"] == "PARTIAL"
+    assert data["recipients"][0]["stego_status"] == "SUCCESS"
+    assert data["recipients"][1]["stego_status"] == "SKIPPED"
+
+
+def test_single_distribution_opt_in_matrix(test_setup, monkeypatch):
+    """
+    Asserts POST /{document_uid}/distribute behavior across the opt-in matrix:
+    1. Global flag False + Opt-in True -> Generates L1+L2 (Layer 3 skipped).
+    2. Global flag True + Opt-in False -> Generates L1+L2 (Layer 3 skipped).
+    3. Global flag True + Opt-in True on High-Capacity PDF -> Generates L1+L2+L3.
+    4. Global flag True + Opt-in True on Low-Capacity PDF -> Returns HTTP 400 (insufficient capacity).
+    """
+    client = test_setup["client"]
+    repo = test_setup["repo"]
+
+    _register_and_login(client, "single_prof@test.com", "single_prof")
+    large_pdf = _create_large_text_pdf_bytes()
+    small_pdf = _create_small_text_pdf_bytes()
+    large_doc_uid = _upload_pdf(client, large_pdf, "LargeSingle.pdf")
+    small_doc_uid = _upload_pdf(client, small_pdf, "SmallSingle.pdf")
+
+    # Register student in repository (student_uid, name)
+    student = repo.create_student("STU-SINGLE", "Student Single")
+
+    ver_service = VerificationService(repo=repo)
+
+    # Case 1: Global False + Opt-in True -> L1+L2 only
+    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", False)
+    res1 = client.post(
+        f"/documents/{large_doc_uid}/distribute",
+        json={"student_uid": "STU-SINGLE", "enable_stego": True}
+    )
+    assert res1.status_code == 200
+    pdf_path1 = config.OUTPUT_DIR / f"{large_doc_uid}_STU-SINGLE.pdf"
+    assert pdf_path1.exists()
+    v1 = ver_service.investigate_pdf(str(pdf_path1))
+    assert v1["status"] == "VALID"
+    assert v1["authenticated_layers"] == ["Layer 1", "Layer 2"]
+    assert "Layer 3" not in v1["authenticated_layers"]
+    pdf_path1.unlink()
+
+    # Case 2: Global True + Opt-in False -> L1+L2 only
+    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
+    res2 = client.post(
+        f"/documents/{large_doc_uid}/distribute",
+        json={"student_uid": "STU-SINGLE", "enable_stego": False}
+    )
+    assert res2.status_code == 200
+    pdf_path2 = config.OUTPUT_DIR / f"{large_doc_uid}_STU-SINGLE.pdf"
+    assert pdf_path2.exists()
+    v2 = ver_service.investigate_pdf(str(pdf_path2))
+    assert v2["status"] == "VALID"
+    assert v2["authenticated_layers"] == ["Layer 1", "Layer 2"]
+    assert "Layer 3" not in v2["authenticated_layers"]
+    pdf_path2.unlink()
+
+    # Case 3: Global True + Opt-in True on High Capacity -> L1+L2+L3
+    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
+    res3 = client.post(
+        f"/documents/{large_doc_uid}/distribute",
+        json={"student_uid": "STU-SINGLE", "enable_stego": True}
+    )
+    assert res3.status_code == 200
+    pdf_path3 = config.OUTPUT_DIR / f"{large_doc_uid}_STU-SINGLE.pdf"
+    assert pdf_path3.exists()
+    v3 = ver_service.investigate_pdf(str(pdf_path3))
+    assert v3["status"] == "VALID"
+    assert v3["authenticated_layers"] == ["Layer 1", "Layer 2", "Layer 3"]
+    pdf_path3.unlink()
+
+    # Case 4: Global True + Opt-in True on Low Capacity -> HTTP 400
+    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
+    res4 = client.post(
+        f"/documents/{small_doc_uid}/distribute",
+        json={"student_uid": "STU-SINGLE", "enable_stego": True}
+    )
+    assert res4.status_code == 400
+    assert "Insufficient document capacity" in res4.json()["detail"]
+

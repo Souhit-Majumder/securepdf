@@ -49,6 +49,10 @@ class ContentStreamLocation(BaseModel):
     preceding_word: str
     displacement: int           # -20 for bit 1, 0 for bit 0
     bit_value: Optional[Literal["0", "1"]] = None  # None for unconfirmed static syntax
+    location_index: int = 0
+    localization_status: Literal["EXACT", "APPROXIMATE", "UNAVAILABLE"] = "UNAVAILABLE"
+    is_carrier_sample: bool = True
+    rect: Optional[List[float]] = None  # [x0, y0, x1, y1] in PyMuPDF points
 
 
 LocationModel = Union[CatalogLocation, AnnotationLocation, ContentStreamLocation]

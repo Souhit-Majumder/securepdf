@@ -51,6 +51,10 @@ class DistributionBatch:
     expiry_duration_seconds: int
     status: str
     created_at: str
+    enable_stego: bool = False
+
+    def __post_init__(self):
+        self.enable_stego = bool(self.enable_stego)
 
 @dataclass
 class DistributionBatchRecipient:
@@ -65,4 +69,5 @@ class DistributionBatchRecipient:
     expires_at: Optional[str] = None
     fingerprint_id: Optional[int] = None
     download_token: Optional[str] = None
+    stego_status: str = "PENDING"
 

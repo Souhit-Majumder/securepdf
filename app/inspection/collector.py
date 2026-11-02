@@ -178,6 +178,9 @@ class EvidenceCollector:
         displacement: int,
         bit_value: Literal["0", "1"],
         source: Literal["RUNTIME_CAPTURE", "STRUCTURAL_RESCAN"] = "RUNTIME_CAPTURE",
+        location_index: int = 0,
+        localization_status: Literal["EXACT", "APPROXIMATE", "UNAVAILABLE"] = "UNAVAILABLE",
+        rect: Optional[List[float]] = None,
     ):
         """
         Records an intentional kerning modulation event.
@@ -195,6 +198,7 @@ class EvidenceCollector:
             # Bounded sample collection
             page_samples = self._samples_by_page[page_index]
             if self.collect_all or len(page_samples) < self.sample_limit_per_page:
+                loc_idx = location_index if location_index > 0 else len(page_samples)
                 location = ContentStreamLocation(
                     page_index=page_index,
                     content_stream_xref=content_stream_xref,
@@ -203,6 +207,10 @@ class EvidenceCollector:
                     preceding_word=preceding_word,
                     displacement=displacement,
                     bit_value=bit_value,
+                    location_index=loc_idx,
+                    localization_status=localization_status,
+                    is_carrier_sample=True,
+                    rect=rect,
                 )
                 sample = ModulationSample(
                     location=location,

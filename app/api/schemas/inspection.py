@@ -65,17 +65,19 @@ class MinimizedAnnotationLocationDTO(BaseModel):
     title: str = Field(max_length=64)
 
 
+LocalizationStatusType = Literal["EXACT", "APPROXIMATE", "UNAVAILABLE"]
+
+
 class MinimizedContentStreamLocationDTO(BaseModel):
-    """Layer 3: Structural inter-word gap modulation sample."""
+    """Layer 3: Carrier modulation location in page coordinates."""
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     carrier_type: Literal["CONTENT_STREAM"] = "CONTENT_STREAM"
     page_index: int = Field(ge=0)
-    content_stream_xref: int = Field(ge=0)
-    gap_index: int = Field(ge=0)
-    displacement: int
-    bit_value: Optional[Literal["0", "1"]] = None
-    is_intentional: bool
+    location_index: int = Field(ge=0)
+    localization_status: LocalizationStatusType
+    is_carrier_sample: bool
+    rect: Optional[List[float]] = Field(default=None, min_length=4, max_length=4)
 
 
 class MinimizedCarrierDTO(BaseModel):

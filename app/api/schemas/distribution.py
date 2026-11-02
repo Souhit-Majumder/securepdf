@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Literal
 from pydantic import BaseModel, constr, Field, field_validator
 
 class RecipientItem(BaseModel):
@@ -11,6 +11,10 @@ class DistributionBatchCreateRequest(BaseModel):
         ge=30,
         le=2592000,
         description="Validity duration in seconds (default 120s / 2min; min 30s, max 30 days)"
+    )
+    enable_stego: bool = Field(
+        default=False,
+        description="Explicit opt-in for Layer 3 steganographic embedding"
     )
     recipients: List[RecipientItem] = Field(
         ...,
@@ -33,6 +37,7 @@ class BatchRecipientResponse(BaseModel):
     recipient_name: str
     recipient_identifier: str
     status: str
+    stego_status: Literal["PENDING", "SKIPPED", "SUCCESS", "FAILED"] = "PENDING"
     generated_at: Optional[str] = None
     expires_at: Optional[str] = None
     download_url: Optional[str] = None
@@ -46,4 +51,6 @@ class DistributionBatchResponse(BaseModel):
     expiry_duration_seconds: int
     status: str
     created_at: str
+    enable_stego: bool = False
+    stego_status: Literal["PENDING", "SKIPPED", "SUCCESS", "FAILED", "PARTIAL"] = "PENDING"
     recipients: List[BatchRecipientResponse]

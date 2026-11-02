@@ -44,14 +44,15 @@ export interface MinimizedAnnotationLocationDTO {
   title: string;
 }
 
+export type LocalizationStatusType = "EXACT" | "APPROXIMATE" | "UNAVAILABLE";
+
 export interface MinimizedContentStreamLocationDTO {
   carrier_type: "CONTENT_STREAM";
   page_index: number;
-  content_stream_xref: number;
-  gap_index: number;
-  displacement: number;
-  bit_value: "0" | "1" | null;
-  is_intentional: boolean;
+  location_index: number;
+  localization_status: LocalizationStatusType;
+  is_carrier_sample: boolean;
+  rect: [number, number, number, number] | null;
 }
 
 export interface MinimizedCarrierDTO {

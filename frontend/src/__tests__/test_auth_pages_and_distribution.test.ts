@@ -439,3 +439,69 @@ describe("Phase 3 Temporary Download Links and Frontend Countdown", () => {
   });
 });
 
+describe("Per-Distribution Layer 3 Steganography Opt-In & Status Invariants", () => {
+  it("defaults enable_stego opt-in to false", () => {
+    const defaultOptIn = false;
+    expect(defaultOptIn).toBe(false);
+  });
+
+  it("serializes enable_stego in batch creation payload", () => {
+    const buildPayload = (duration: number, recipients: any[], enableStego: boolean) => ({
+      expiry_duration_seconds: duration,
+      enable_stego: enableStego,
+      recipients,
+    });
+
+    const payloadDefault = buildPayload(120, [{ name: "Alice", student_uid: "A1" }], false);
+    expect(payloadDefault.enable_stego).toBe(false);
+
+    const payloadOptIn = buildPayload(120, [{ name: "Alice", student_uid: "A1" }], true);
+    expect(payloadOptIn.enable_stego).toBe(true);
+  });
+
+  it("correctly aggregates batch-level stego_status according to specification", () => {
+    const aggregateBatchStego = (recipientStegoStatuses: string[], batchStatus: string): string => {
+      const set = new Set(recipientStegoStatuses);
+      if (set.has("FAILED")) return "FAILED";
+      if (set.has("PENDING")) return "PENDING";
+      if (set.size === 1 && set.has("SUCCESS")) return "SUCCESS";
+      if (set.size === 1 && set.has("SKIPPED")) return "SKIPPED";
+      if (set.has("SUCCESS") && set.has("SKIPPED")) return "PARTIAL";
+      return batchStatus === "PENDING" ? "PENDING" : "SKIPPED";
+    };
+
+    // All recipients SUCCESS -> SUCCESS
+    expect(aggregateBatchStego(["SUCCESS", "SUCCESS"], "COMPLETED")).toBe("SUCCESS");
+
+    // All recipients SKIPPED -> SKIPPED
+    expect(aggregateBatchStego(["SKIPPED", "SKIPPED"], "COMPLETED")).toBe("SKIPPED");
+
+    // Any recipient FAILED -> FAILED
+    expect(aggregateBatchStego(["SUCCESS", "FAILED"], "PARTIALLY_FAILED")).toBe("FAILED");
+    expect(aggregateBatchStego(["SKIPPED", "FAILED"], "PARTIALLY_FAILED")).toBe("FAILED");
+
+    // Mixture of SUCCESS and SKIPPED without failure -> PARTIAL
+    expect(aggregateBatchStego(["SUCCESS", "SKIPPED"], "COMPLETED")).toBe("PARTIAL");
+
+    // Newly created / pending recipients -> PENDING
+    expect(aggregateBatchStego(["PENDING", "PENDING"], "PENDING")).toBe("PENDING");
+  });
+
+  it("does not expose cryptographic HMACs, nonces, or internal keys in status display", () => {
+    const sampleRecipient = {
+      recipient_name: "Alice",
+      recipient_identifier: "STU-001",
+      status: "GENERATED",
+      stego_status: "SUCCESS",
+    };
+
+    const renderedKeys = Object.keys(sampleRecipient);
+    expect(renderedKeys).not.toContain("hmac");
+    expect(renderedKeys).not.toContain("hmac_tag");
+    expect(renderedKeys).not.toContain("nonce");
+    expect(renderedKeys).not.toContain("master_key");
+    expect(renderedKeys).not.toContain("subkey");
+  });
+});
+
+

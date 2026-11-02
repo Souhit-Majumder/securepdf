@@ -61,15 +61,19 @@ export const DistributionModal: React.FC<DistributionModalProps> = ({
   const [inputError, setInputError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [enableStego, setEnableStego] = useState<boolean>(false);
   const [successBatch, setSuccessBatch] = useState<{
     batch_uid: string;
     total_recipients: number;
     expiry_duration_seconds: number;
     status: string;
+    enable_stego?: boolean;
+    stego_status?: "PENDING" | "SKIPPED" | "SUCCESS" | "FAILED" | "PARTIAL";
     recipients?: Array<{
       recipient_name: string;
       recipient_identifier: string;
       status: string;
+      stego_status?: "PENDING" | "SKIPPED" | "SUCCESS" | "FAILED";
       generated_at?: string | null;
       expires_at?: string | null;
       download_url?: string | null;
@@ -146,6 +150,8 @@ export const DistributionModal: React.FC<DistributionModalProps> = ({
               total_recipients: data.total_recipients,
               expiry_duration_seconds: data.expiry_duration_seconds,
               status: data.status,
+              enable_stego: data.enable_stego,
+              stego_status: data.stego_status,
               recipients: data.recipients,
             });
             if (["COMPLETED", "PARTIALLY_FAILED", "FAILED"].includes(data.status)) {
@@ -223,6 +229,7 @@ export const DistributionModal: React.FC<DistributionModalProps> = ({
         credentials: "include",
         body: JSON.stringify({
           expiry_duration_seconds: effectiveDuration,
+          enable_stego: enableStego,
           recipients: recipients,
         }),
       });
@@ -237,6 +244,8 @@ export const DistributionModal: React.FC<DistributionModalProps> = ({
         total_recipients: data.total_recipients,
         expiry_duration_seconds: data.expiry_duration_seconds,
         status: data.status,
+        enable_stego: data.enable_stego,
+        stego_status: data.stego_status,
         recipients: data.recipients,
       });
     } catch (err: any) {
@@ -267,6 +276,8 @@ export const DistributionModal: React.FC<DistributionModalProps> = ({
         total_recipients: data.total_recipients,
         expiry_duration_seconds: data.expiry_duration_seconds,
         status: data.status,
+        enable_stego: data.enable_stego,
+        stego_status: data.stego_status,
         recipients: data.recipients,
       });
 
@@ -284,6 +295,7 @@ export const DistributionModal: React.FC<DistributionModalProps> = ({
     setRecipients([]);
     setRecipientName("");
     setRecipientUid("");
+    setEnableStego(false);
     setSelectedDuration(120);
     setCustomSeconds("300");
     setApiError(null);
@@ -415,6 +427,25 @@ export const DistributionModal: React.FC<DistributionModalProps> = ({
                   {successBatch.status}
                 </span>
               </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Layer 3 Steganography:</span>
+                <span
+                  data-testid="batch-stego-status"
+                  className={`px-2 py-0.5 rounded-md font-semibold text-[11px] ${
+                    successBatch.stego_status === "SUCCESS"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : successBatch.stego_status === "PARTIAL"
+                      ? "bg-amber-100 text-amber-800"
+                      : successBatch.stego_status === "FAILED"
+                      ? "bg-rose-100 text-rose-800"
+                      : successBatch.stego_status === "PENDING"
+                      ? "bg-sky-100 text-sky-800"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {successBatch.stego_status || "PENDING"}
+                </span>
+              </div>
 
               {/* Progress Bar (during or after processing) */}
               {(successBatch.status === "PROCESSING" ||
@@ -483,6 +514,22 @@ export const DistributionModal: React.FC<DistributionModalProps> = ({
 
                         {/* Status Badge & Action Buttons */}
                         <div className="flex items-center gap-2 shrink-0">
+                          {r.stego_status && (
+                            <span
+                              data-testid={`recipient-stego-${r.recipient_identifier}`}
+                              className={`text-[9.5px] font-mono px-1.5 py-0.5 rounded-md font-medium ${
+                                r.stego_status === "SUCCESS"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : r.stego_status === "FAILED"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                  : r.stego_status === "PENDING"
+                                  ? "bg-sky-50 text-sky-700 border border-sky-200"
+                                  : "bg-slate-50 text-slate-500 border border-slate-200"
+                              }`}
+                            >
+                              L3: {r.stego_status}
+                            </span>
+                          )}
                           <span
                             className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                               isExpired || r.status === "EXPIRED"
@@ -714,7 +761,31 @@ export const DistributionModal: React.FC<DistributionModalProps> = ({
               </p>
             </div>
 
-            {/* Section 2: Recipient Ingestion Form */}
+            {/* Section 2: Layer 3 Steganography Opt-In */}
+            <div className="space-y-1.5 p-3 rounded-2xl bg-white/60 border border-white/90">
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  data-testid="stego-opt-in-checkbox"
+                  checked={enableStego}
+                  onChange={(e) => setEnableStego(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                />
+                <div className="space-y-0.5">
+                  <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                    <span>Enable Layer 3 Steganography (Passive Carrier)</span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sky-100 text-sky-700 font-medium">
+                      Optional
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Embeds imperceptible kerning shifts independently verified with HMAC-SHA256. Requires server feature flag and sufficient document capacity.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* Section 3: Recipient Ingestion Form */}
             <div className="space-y-2 p-3 rounded-2xl bg-white/60 border border-white/90">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-800">Add Recipients</span>

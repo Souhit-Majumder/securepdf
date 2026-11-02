@@ -37,6 +37,8 @@ interface EvidencePanelProps {
   onSetForensicKey?: (key: string) => void;
   selectedAnnotationXref?: number | null;
   onSelectAnnotation?: (xref: number | null) => void;
+  selectedKerningLocationIndex?: number | null;
+  onSelectKerningLocation?: (index: number | null) => void;
   onPageChange?: (page: number) => void;
   currentPage?: number;
 }
@@ -55,6 +57,8 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
   onSetForensicKey,
   selectedAnnotationXref = null,
   onSelectAnnotation,
+  selectedKerningLocationIndex = null,
+  onSelectKerningLocation,
   onPageChange,
   currentPage = 1,
 }) => {
@@ -383,6 +387,95 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                   <div className="flex justify-between items-center py-0.5 text-[10px]">
                     <span className="text-slate-400">Signature Ref</span>
                     <span className="font-mono text-sky-300 font-bold">{carrier.signature_ref}</span>
+                  </div>
+                )}
+
+                {/* Layer 3 Carrier Modulation Locations */}
+                {carrier.content_stream_locations && carrier.content_stream_locations.length > 0 && (
+                  <div className="pt-2 border-t border-white/10 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Type className="w-3 h-3 text-sky-400" />
+                        Carrier Modulation Locations
+                      </span>
+                      <span className="text-[7.5px] text-slate-400 font-medium">Click to highlight</span>
+                    </div>
+
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                      {carrier.content_stream_locations.map((loc, idx) => {
+                        const isSelected = selectedKerningLocationIndex === loc.location_index;
+                        const isExact = loc.localization_status === "EXACT";
+                        const isApprox = loc.localization_status === "APPROXIMATE";
+                        const isUnavail = loc.localization_status === "UNAVAILABLE";
+
+                        return (
+                          <div
+                            key={loc.location_index ?? idx}
+                            data-testid={`carrier-location-entry-${loc.location_index}`}
+                            onClick={() => {
+                              if (onSelectKerningLocation) {
+                                onSelectKerningLocation(isSelected ? null : loc.location_index);
+                              }
+                              if (onPageChange && loc.page_index !== ((currentPage || 1) - 1)) {
+                                onPageChange(loc.page_index + 1);
+                              }
+                            }}
+                            className={`p-2 rounded-xl border transition-all text-[9.5px] cursor-pointer ${
+                              isSelected
+                                ? "bg-sky-500/20 border-sky-400/80 ring-1 ring-sky-400/50 text-white shadow-sm"
+                                : "bg-white/5 border-white/10 hover:bg-white/10 text-slate-300"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-mono font-bold text-sky-300 flex items-center gap-1.5">
+                                <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-sky-400 animate-pulse" : "bg-slate-400"}`} />
+                                Modulation #{loc.location_index + 1}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="px-1.5 py-0.2 rounded bg-white/10 text-[8px] font-mono text-slate-300">
+                                  Page {loc.page_index + 1}
+                                </span>
+                                <span
+                                  className={`px-1.5 py-0.2 rounded text-[7.5px] font-mono font-bold ${
+                                    isExact
+                                      ? "bg-sky-500/20 text-sky-300 border border-sky-400/30"
+                                      : isApprox
+                                      ? "bg-amber-500/20 text-amber-300 border border-amber-400/30"
+                                      : "bg-slate-500/20 text-slate-400 border border-slate-400/30"
+                                  }`}
+                                >
+                                  {isExact ? "EXACT" : isApprox ? "APPROXIMATE" : "UNAVAILABLE"}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="space-y-0.5 text-[8.5px] font-mono text-slate-300 bg-black/20 p-1.5 rounded-lg border border-white/5">
+                              {isUnavail || !loc.rect ? (
+                                <div className="text-slate-400 italic">
+                                  Coordinates not reliably available
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex justify-between text-slate-400">
+                                    <span>{isApprox ? "~ Approx Coordinates:" : "Native Coordinates:"}</span>
+                                    <span className="text-slate-400">Points (pt)</span>
+                                  </div>
+                                  <div className={`${isApprox ? "text-amber-200" : "text-sky-200"} truncate`}>
+                                    [{loc.rect.map((v) => v.toFixed(2)).join(", ")}]
+                                  </div>
+                                  <div className="flex justify-between text-[8px] text-slate-400 pt-0.5 border-t border-white/5">
+                                    <span>
+                                      Dimensions: {(loc.rect[2] - loc.rect[0]).toFixed(2)} × {(loc.rect[3] - loc.rect[1]).toFixed(2)} pt
+                                    </span>
+                                    <span className="text-[7.5px] text-sky-300/80 italic">Caliper Marker</span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </>

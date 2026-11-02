@@ -77,6 +77,7 @@ class DownloadReleaseGuard:
 
 class DistributeRequest(BaseModel):
     student_uid: str
+    enable_stego: bool = False
 
 @router.post("/{document_uid}/distribute")
 def distribute_document(
@@ -111,15 +112,81 @@ def distribute_document(
     safe_stu_uid = request.student_uid.replace("/", "_").replace("\\", "_")
     
     output_pdf_path = os.path.join(str(out_dir), f"{safe_doc_uid}_{safe_stu_uid}.pdf")
-    
+    temp_output_path = output_pdf_path + f".tmp_{secrets.token_hex(6)}"
+
+    global_stego = getattr(config, "ENABLE_STEGO_CARRIER", False)
+    effective_stego = bool(global_stego) and bool(request.enable_stego)
+
     try:
-        service.fingerprint_pdf(
-            student_uid=request.student_uid,
+        student = repo.get_student_by_uid(request.student_uid)
+        if not student:
+            raise HTTPException(status_code=404, detail=f"Student with UID {request.student_uid} not found.")
+
+        document = repo.get_or_create_document(document_uid, f"{document_uid}_original.pdf")
+        nonce, fingerprint_hex = service.generate_fingerprint_payload(request.student_uid, document_uid)
+
+        embed_stage = service.embed_and_save_pdf(
             document_uid=document_uid,
+            student_uid=request.student_uid,
+            nonce=nonce,
+            fingerprint_hex=fingerprint_hex,
             input_pdf_path=input_pdf_path,
-            output_pdf_path=output_pdf_path
+            output_pdf_path=temp_output_path,
+            enable_stego=effective_stego,
         )
+
+        if effective_stego and embed_stage.l3_status == "SKIPPED_INSUFFICIENT_CAPACITY":
+            if os.path.exists(temp_output_path):
+                os.unlink(temp_output_path)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient document capacity ({embed_stage.l3_available_bits} bits available, {embed_stage.l3_required_bits} bits required) for Layer 3 steganographic embedding"
+            )
+
+        if not embed_stage.success or (effective_stego and embed_stage.l3_status == "FAILED"):
+            if os.path.exists(temp_output_path):
+                os.unlink(temp_output_path)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Embedding stage failed: {embed_stage.error or 'L3 failure'}"
+            )
+
+        stego_expected = effective_stego and (embed_stage.l3_status == "EMBEDDED")
+        verify_result = service.verify_saved_pdf_carriers(
+            pdf_path=temp_output_path,
+            document_uid=document_uid,
+            recipient_uid=request.student_uid,
+            nonce=nonce,
+            fingerprint_hex=fingerprint_hex,
+            stego_expected=stego_expected,
+            stego_skipped_capacity=False,
+        )
+
+        if not verify_result.is_valid or (stego_expected and verify_result.l3_status != "VERIFIED"):
+            if os.path.exists(temp_output_path):
+                os.unlink(temp_output_path)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Post-generation carrier verification failed: {verify_result.error or 'Invalid verification'}"
+            )
+
+        # Atomic replacement of final output
+        os.replace(temp_output_path, output_pdf_path)
+
+        repo.create_fingerprint(
+            document_id=document.id,
+            student_id=student.id,
+            nonce=nonce,
+            fingerprint=fingerprint_hex
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        if os.path.exists(temp_output_path):
+            try:
+                os.unlink(temp_output_path)
+            except Exception:
+                pass
         raise HTTPException(status_code=400, detail=str(e))
         
     return FileResponse(
@@ -157,7 +224,8 @@ def create_distribution_batch(
         user_id=current_user.id,
         document_id=doc.id,
         expiry_duration_seconds=payload.expiry_duration_seconds,
-        recipients_data=recipients_data
+        recipients_data=recipients_data,
+        enable_stego=payload.enable_stego,
     )
 
     recipients = repo.get_batch_recipients(batch.id)
@@ -191,6 +259,7 @@ def get_distribution_batch(
 def _format_batch_response(batch, document_uid: str, recipients) -> DistributionBatchResponse:
     now_utc = datetime.now(timezone.utc)
     recipient_items = []
+    stego_statuses = []
     for r in recipients:
         is_expired = False
         if r.expires_at:
@@ -209,17 +278,35 @@ def _format_batch_response(batch, document_uid: str, recipients) -> Distribution
         if effective_status == "GENERATED" and r.download_token and not is_expired:
             download_url = f"/documents/download/{r.download_token}"
 
+        r_stego = getattr(r, "stego_status", "PENDING") or "PENDING"
+        stego_statuses.append(r_stego)
+
         recipient_items.append(
             BatchRecipientResponse(
                 recipient_name=r.recipient_name,
                 recipient_identifier=r.recipient_identifier,
                 status=effective_status,
+                stego_status=r_stego,
                 generated_at=str(r.generated_at) if r.generated_at else None,
                 expires_at=str(r.expires_at) if r.expires_at else None,
                 download_url=download_url,
                 created_at=str(r.created_at)
             )
         )
+
+    unique_stego = set(stego_statuses)
+    if "FAILED" in unique_stego:
+        batch_stego = "FAILED"
+    elif "PENDING" in unique_stego:
+        batch_stego = "PENDING"
+    elif unique_stego == {"SUCCESS"}:
+        batch_stego = "SUCCESS"
+    elif unique_stego == {"SKIPPED"}:
+        batch_stego = "SKIPPED"
+    elif "SUCCESS" in unique_stego and "SKIPPED" in unique_stego:
+        batch_stego = "PARTIAL"
+    else:
+        batch_stego = "PENDING" if batch.status == "PENDING" else "SKIPPED"
 
     return DistributionBatchResponse(
         batch_uid=batch.batch_uid,
@@ -228,6 +315,8 @@ def _format_batch_response(batch, document_uid: str, recipients) -> Distribution
         expiry_duration_seconds=batch.expiry_duration_seconds,
         status=batch.status,
         created_at=str(batch.created_at),
+        enable_stego=bool(batch.enable_stego),
+        stego_status=batch_stego,
         recipients=recipient_items
     )
 
@@ -255,7 +344,10 @@ def _process_batch_generation(
         batch_dir.mkdir(parents=True, exist_ok=True)
 
         recipients = repo.get_batch_recipients(batch_id)
-        stego_enabled = getattr(config, "ENABLE_STEGO_CARRIER", False)
+        batch = repo.get_distribution_batch_by_uid(batch_uid)
+        batch_opt_in = bool(batch.enable_stego) if batch else False
+        global_stego_enabled = getattr(config, "ENABLE_STEGO_CARRIER", False)
+        effective_stego = bool(global_stego_enabled) and batch_opt_in
 
         for recipient in recipients:
             final_filename = f"rec_{recipient.id}.pdf"
@@ -280,10 +372,10 @@ def _process_batch_generation(
                     recipient.recipient_identifier,
                     existing_fp.nonce,
                     existing_fp.fingerprint,
-                    stego_expected=stego_enabled,
+                    stego_expected=effective_stego,
                 )
                 if reconcile_res.is_valid:
-                    # final_path is already authentic and verified! Reconcile database update only:
+                    rec_stego = "SUCCESS" if effective_stego else "SKIPPED"
                     if recipient.generated_at and recipient.expires_at:
                         gen_at = recipient.generated_at
                         exp_at = recipient.expires_at
@@ -298,6 +390,7 @@ def _process_batch_generation(
                         generated_at=gen_at,
                         expires_at=exp_at,
                         download_token=token,
+                        stego_status=rec_stego,
                     )
                     continue
 
@@ -330,17 +423,23 @@ def _process_batch_generation(
                     fingerprint_hex,
                     str(input_pdf_path),
                     str(temp_path),
+                    enable_stego=effective_stego,
                 )
 
-                if not embed_stage.success or embed_stage.l3_status == "FAILED":
+                if effective_stego and embed_stage.l3_status == "SKIPPED_INSUFFICIENT_CAPACITY":
+                    raise RuntimeError(
+                        f"Insufficient document capacity ({embed_stage.l3_available_bits} bits available, "
+                        f"{embed_stage.l3_required_bits} bits required) for Layer 3 embedding"
+                    )
+
+                if not embed_stage.success or (effective_stego and embed_stage.l3_status == "FAILED"):
                     raise RuntimeError(f"Embedding stage failed for recipient {recipient.id}: {embed_stage.error or 'L3 failure'}")
 
                 if not temp_path.exists() or temp_path.stat().st_size == 0:
                     raise RuntimeError(f"Temporary PDF generation produced an invalid file for recipient {recipient.id}")
 
                 # Stage 2: Post-Serialization Output Verification on temp_path
-                stego_expected = (embed_stage.l3_status == "EMBEDDED")
-                stego_skipped_capacity = (embed_stage.l3_status == "SKIPPED_INSUFFICIENT_CAPACITY")
+                stego_expected = effective_stego and (embed_stage.l3_status == "EMBEDDED")
                 verify_result = service.verify_saved_pdf_carriers(
                     str(temp_path),
                     doc.document_uid,
@@ -348,15 +447,17 @@ def _process_batch_generation(
                     nonce,
                     fingerprint_hex,
                     stego_expected=stego_expected,
-                    stego_skipped_capacity=stego_skipped_capacity,
+                    stego_skipped_capacity=False,
                 )
 
-                if not verify_result.is_valid:
+                if not verify_result.is_valid or (stego_expected and verify_result.l3_status != "VERIFIED"):
                     raise RuntimeError(f"Post-generation verification failed for recipient {recipient.id}: {verify_result.error or 'Carrier verification failed'}")
 
                 # 3. Atomically replace final opaque path (only now, after temp_path is 100% verified!)
                 temp_path.replace(final_path)
                 promoted_this_attempt = True
+
+                rec_stego_status = "SUCCESS" if effective_stego else "SKIPPED"
 
                 # 4. Commit database updates
                 if existing_fp is not None:
@@ -374,7 +475,8 @@ def _process_batch_generation(
                         recipient_id=recipient.id,
                         generated_at=gen_at,
                         expires_at=exp_at,
-                        download_token=token
+                        download_token=token,
+                        stego_status=rec_stego_status,
                     )
                 else:
                     # Fresh generation: calculate timezone-aware UTC timestamps
@@ -392,7 +494,8 @@ def _process_batch_generation(
                         fingerprint_hex=fingerprint_hex,
                         generated_at=generated_at,
                         expires_at=expires_at,
-                        download_token=download_token
+                        download_token=download_token,
+                        stego_status=rec_stego_status,
                     )
             except Exception as e:
                 # Safe cleanup: only remove temporary artifacts owned by this attempt.
@@ -404,11 +507,13 @@ def _process_batch_generation(
                 if promoted_this_attempt and not had_existing_final and final_path.exists():
                     final_path.unlink(missing_ok=True)
                 logger.warning(
-                    "Batch recipient generation failed: batch_uid=%s, error_type=%s",
+                    "Batch recipient generation failed: batch_uid=%s, error_type=%s, error=%s",
                     safe_batch_uid,
                     type(e).__name__,
+                    str(e),
                 )
-                repo.record_recipient_failure(recipient.id)
+                failure_stego = "FAILED" if effective_stego else "SKIPPED"
+                repo.record_recipient_failure(recipient.id, stego_status=failure_stego)
 
         repo.finalize_batch_generation_status(batch_id)
     finally:
