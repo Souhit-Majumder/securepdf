@@ -34,13 +34,12 @@ def create_text_pdf(path: str, pages: int = 10, lines_per_page: int = 15):
     doc.close()
 
 
-def test_baseline_equivalence_when_stego_disabled(test_env, monkeypatch):
+def test_baseline_equivalence_when_stego_disabled(test_env):
     """
-    Asserts that when ENABLE_STEGO_CARRIER = False:
+    Asserts that when enable_stage3 = False:
     - FingerprintService and VerificationService behave identically to baseline.
     - authenticated_layers is ["Layer 1", "Layer 2"].
     """
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", False)
     repo = test_env["repo"]
     master_key = test_env["master_key"]
     tmp_path = test_env["tmp_path"]
@@ -51,7 +50,7 @@ def test_baseline_equivalence_when_stego_disabled(test_env, monkeypatch):
     out_pdf = str(tmp_path / "out_equiv.pdf")
 
     fp_service = FingerprintService(repo=repo, master_key=master_key)
-    fp_service.fingerprint_pdf("STU-ALICE", "DOC-EQUIV", src_pdf, out_pdf)
+    fp_service.fingerprint_pdf("STU-ALICE", "DOC-EQUIV", src_pdf, out_pdf, enable_stage3=False)
 
     ver_service = VerificationService(repo=repo, master_key=master_key)
     res = ver_service.investigate_pdf(out_pdf)
@@ -61,13 +60,12 @@ def test_baseline_equivalence_when_stego_disabled(test_env, monkeypatch):
     assert res["authenticated_layers"] == ["Layer 1", "Layer 2"]
 
 
-def test_end_to_end_layer3_issuance_and_verification(test_env, monkeypatch):
+def test_end_to_end_layer3_issuance_and_verification(test_env):
     """
-    Asserts that when ENABLE_STEGO_CARRIER = True:
+    Asserts that when enable_stage3 = True:
     - Layer 3 is embedded and authenticated.
     - authenticated_layers is ["Layer 1", "Layer 2", "Layer 3"].
     """
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
     repo = test_env["repo"]
     master_key = test_env["master_key"]
     tmp_path = test_env["tmp_path"]
@@ -79,7 +77,7 @@ def test_end_to_end_layer3_issuance_and_verification(test_env, monkeypatch):
     out_pdf = str(tmp_path / "out_stego.pdf")
 
     fp_service = FingerprintService(repo=repo, master_key=master_key)
-    fp_service.fingerprint_pdf("STU-ALICE", "DOC-STEGO", src_pdf, out_pdf)
+    fp_service.fingerprint_pdf("STU-ALICE", "DOC-STEGO", src_pdf, out_pdf, enable_stage3=True)
 
     ver_service = VerificationService(repo=repo, master_key=master_key)
     res = ver_service.investigate_pdf(out_pdf)
@@ -89,7 +87,7 @@ def test_end_to_end_layer3_issuance_and_verification(test_env, monkeypatch):
     assert res["authenticated_layers"] == ["Layer 1", "Layer 2", "Layer 3"]
 
 
-def test_cross_carrier_security_conflict(test_env, monkeypatch):
+def test_cross_carrier_security_conflict(test_env):
     """
     Asserts that if Layer 1 authenticates to Alice, and Layer 3 authenticates to Bob,
     the verifier returns SECURITY_CONFLICT with absolute precedence.
@@ -102,10 +100,9 @@ def test_cross_carrier_security_conflict(test_env, monkeypatch):
     create_text_pdf(src_pdf, pages=10, lines_per_page=15)
 
     # 1. Issue for Alice with stego disabled to set up L1 + L2 for Alice in database
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", False)
     fp_alice = FingerprintService(repo=repo, master_key=master_key)
     alice_pdf = str(tmp_path / "alice_doc.pdf")
-    fp_alice.fingerprint_pdf("STU-ALICE", "DOC-CONFLICT", src_pdf, alice_pdf)
+    fp_alice.fingerprint_pdf("STU-ALICE", "DOC-CONFLICT", src_pdf, alice_pdf, enable_stage3=False)
 
     # 2. Also register Bob for same document in database with nonce_bob
     doc_rec = repo.get_document_by_uid("DOC-CONFLICT")
@@ -126,7 +123,6 @@ def test_cross_carrier_security_conflict(test_env, monkeypatch):
     doc.close()
 
     # 4. Verify: Layer 1 is Alice, Layer 3 is Bob -> must trigger SECURITY_CONFLICT
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
     ver_service = VerificationService(repo=repo, master_key=master_key)
     res = ver_service.investigate_pdf(conflict_pdf)
 
@@ -134,12 +130,11 @@ def test_cross_carrier_security_conflict(test_env, monkeypatch):
     assert "different identities" in res["reason"]
 
 
-def test_capacity_deficit_fallback(test_env, monkeypatch):
+def test_capacity_deficit_fallback(test_env):
     """
     Asserts that if a document has insufficient text capacity for Layer 3,
     it falls back gracefully to Layers 1 and 2 without failing.
     """
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
     repo = test_env["repo"]
     master_key = test_env["master_key"]
     tmp_path = test_env["tmp_path"]
@@ -151,7 +146,7 @@ def test_capacity_deficit_fallback(test_env, monkeypatch):
     out_pdf = str(tmp_path / "out_small.pdf")
 
     fp_service = FingerprintService(repo=repo, master_key=master_key)
-    fp_service.fingerprint_pdf("STU-ALICE", "DOC-SMALL", src_pdf, out_pdf)
+    fp_service.fingerprint_pdf("STU-ALICE", "DOC-SMALL", src_pdf, out_pdf, enable_stage3=True)
 
     ver_service = VerificationService(repo=repo, master_key=master_key)
     res = ver_service.investigate_pdf(out_pdf)

@@ -35,6 +35,7 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { DistributionModal } from "./components/DistributionModal";
 import { UserMenu } from "./components/UserMenu";
 import { getSafeRedirect } from "./utils/safeRedirect";
+import { GradientASCII } from "./components/GradientASCII";
 
 export const App: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -205,6 +206,40 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleGoToUpload = () => {
+    // Abort in-flight verification if running
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setSelectedFile(null);
+    setInspectionReport(null);
+    setVerificationResult(null);
+    setIsVerifying(false);
+    setVerificationError(null);
+    setDistributionError(null);
+    setActiveDocumentUid(null);
+    setCurrentPage(1);
+    setTotalPages(1);
+    setSelectedAnnotationXref(null);
+    setSelectedKerningLocationIndex(null);
+    setError(null);
+    setIsLoading(false);
+    setIsDistributionModalOpen(false);
+    setActiveLayer(0);
+    setVisibleLayers({
+      catalog: true,
+      annotations: true,
+      textStream: true,
+    });
+    setSpatialTool("orbit");
+    setZoomLevel(100);
+    setCameraResetTrigger((c) => c + 1);
+    if (currentPath !== "/") {
+      navigate("/");
+    }
+  };
+
   const handleOpenDistribution = async () => {
     if (!currentUser) {
       navigate(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
@@ -333,24 +368,28 @@ export const App: React.FC = () => {
     );
   }
 
-  if (currentPath === "/login") {
+  if (currentPath === "/login" && !currentUser) {
     return (
       <LoginPage
         currentUser={currentUser}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
+          const safe = getSafeRedirect(new URLSearchParams(window.location.search).get("redirect"));
+          navigate(safe);
         }}
         onNavigate={navigate}
       />
     );
   }
 
-  if (currentPath === "/register") {
+  if (currentPath === "/register" && !currentUser) {
     return (
       <RegisterPage
         currentUser={currentUser}
         onRegisterSuccess={(user) => {
           setCurrentUser(user);
+          const safe = getSafeRedirect(new URLSearchParams(window.location.search).get("redirect"));
+          navigate(safe);
         }}
         onNavigate={navigate}
       />
@@ -362,17 +401,33 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen spatial-bg text-slate-800 overflow-hidden relative font-sans">
+      {/* Background Gradient ASCII Animation across full upload screen */}
+      {!selectedFile && (
+        <GradientASCII
+          colors={["#090d16", "#1e3a8a", "#0284c7", "#38bdf8", "#f8fafc"]}
+          shape="horizon"
+          characters=" =+xX0S8#@"
+          cellSize={18}
+          density={0.75}
+        />
+      )}
+
       {/* ---------------- Floating Top Glass Island Header (Matches Design Reference) ---------------- */}
       <header className="absolute top-4 left-1/2 -translate-x-1/2 z-30 h-11 px-5 rounded-2xl glass-top-island flex items-center gap-4 shadow-xl pointer-events-auto">
-        {/* Brand Logo & Name */}
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-sky-500/10 border border-sky-400/30 flex items-center justify-center text-sky-600 shadow-xs">
+        {/* Brand Logo & Name (Clicking returns to upload PDF page) */}
+        <button
+          type="button"
+          onClick={handleGoToUpload}
+          title="Return to upload PDF page"
+          className="flex items-center gap-2 cursor-pointer group focus:outline-none transition-opacity hover:opacity-80"
+        >
+          <div className="w-6 h-6 rounded-md bg-sky-500/10 border border-sky-400/30 flex items-center justify-center text-sky-600 shadow-xs group-hover:scale-105 transition-transform">
             <Shield className="w-3.5 h-3.5" />
           </div>
-          <span className="font-semibold tracking-tight text-xs text-slate-900">
+          <span className="font-semibold tracking-tight text-xs text-slate-900 group-hover:text-sky-700 transition-colors">
             SecurePDF
           </span>
-        </div>
+        </button>
 
         {/* Center File Pill */}
         {selectedFile && (
@@ -532,47 +587,49 @@ export const App: React.FC = () => {
           </aside>
         )}
 
-        {/* Inner Box: Large Translucent Frosted Glass Sheet & 3D Stage (Matches Reference Image) */}
-        <div className="w-[82%] max-w-[1240px] h-[76%] max-h-[720px] spatial-backdrop-sheet rounded-[32px] relative overflow-hidden shadow-2xl z-10 flex items-center justify-center">
-          <div className="w-full h-full relative">
-            {!selectedFile ? (
-              <UploadZone
-                onFileSelected={handleFileSelected}
-                isLoading={isLoading}
-                error={error}
-              />
-            ) : !isWebglAvailable && webglDiagnostic ? (
-              <WebGLErrorFallback
-                diagnostic={webglDiagnostic}
-                inspectionReport={inspectionReport}
-                onRetry={() => setWebglDiagnostic(probeWebGLSupport())}
-              />
-            ) : inspectionReport ? (
-              <Viewport3D
-                report={inspectionReport}
-                pdfFile={selectedFile}
-                activeLayer={activeLayer}
-                visibleLayers={visibleLayers}
-                onSelectLayer={setActiveLayer}
-                zoomLevel={zoomLevel}
-                cameraResetTrigger={cameraResetTrigger}
-                spatialTool={spatialTool}
-                currentPage={currentPage}
-                onTotalPagesChange={setTotalPages}
-                selectedAnnotationXref={selectedAnnotationXref}
-                selectedKerningLocationIndex={selectedKerningLocationIndex}
-                onSelectKerningLocation={setSelectedKerningLocationIndex}
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-slate-500">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-xs font-medium tracking-wide">Inspecting Document Structure...</span>
+        {!selectedFile ? (
+          <UploadZone
+            onFileSelected={handleFileSelected}
+            isLoading={isLoading}
+            error={error}
+          />
+        ) : (
+          /* Inner Box: Large Translucent Frosted Glass Sheet & 3D Stage (Matches Reference Image) */
+          <div className="w-[82%] max-w-[1240px] h-[76%] max-h-[720px] spatial-backdrop-sheet rounded-[32px] relative overflow-hidden shadow-2xl z-10 flex items-center justify-center">
+            <div className="w-full h-full relative">
+              {!isWebglAvailable && webglDiagnostic ? (
+                <WebGLErrorFallback
+                  diagnostic={webglDiagnostic}
+                  inspectionReport={inspectionReport}
+                  onRetry={() => setWebglDiagnostic(probeWebGLSupport())}
+                />
+              ) : inspectionReport ? (
+                <Viewport3D
+                  report={inspectionReport}
+                  pdfFile={selectedFile}
+                  activeLayer={activeLayer}
+                  visibleLayers={visibleLayers}
+                  onSelectLayer={setActiveLayer}
+                  zoomLevel={zoomLevel}
+                  cameraResetTrigger={cameraResetTrigger}
+                  spatialTool={spatialTool}
+                  currentPage={currentPage}
+                  onTotalPagesChange={setTotalPages}
+                  selectedAnnotationXref={selectedAnnotationXref}
+                  selectedKerningLocationIndex={selectedKerningLocationIndex}
+                  onSelectKerningLocation={setSelectedKerningLocationIndex}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-500">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs font-medium tracking-wide">Inspecting Document Structure...</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Right: Floating Frosted Glass Evidence Instrument Panel (Aligned with Left Dock) */}
         {inspectionReport && isWebglAvailable && (

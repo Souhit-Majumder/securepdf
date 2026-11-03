@@ -51,10 +51,18 @@ class DistributionBatch:
     expiry_duration_seconds: int
     status: str
     created_at: str
-    enable_stego: bool = False
+    enable_stage1: bool = True
+    enable_stage2: bool = True
+    enable_stage3: bool = False
+    enable_stego: Optional[bool] = None
 
     def __post_init__(self):
-        self.enable_stego = bool(self.enable_stego)
+        self.enable_stage1 = bool(self.enable_stage1)
+        self.enable_stage2 = bool(self.enable_stage2)
+        if self.enable_stage3 is None and self.enable_stego is not None:
+            self.enable_stage3 = bool(self.enable_stego)
+        else:
+            self.enable_stage3 = bool(self.enable_stage3)
 
 @dataclass
 class DistributionBatchRecipient:

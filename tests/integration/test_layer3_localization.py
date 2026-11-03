@@ -265,12 +265,10 @@ def test_layer3_modulation_localization_end_to_end(test_env, monkeypatch):
     out_pdf = str(tmp_path / "fingerprinted.pdf")
 
     # 1. Fingerprint with Stego enabled
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
     fp_service = FingerprintService(repo=repo, master_key=master_key)
-    fp_service.fingerprint_pdf("STU-LOC-1", "DOC-LOC-TEST", src_pdf, out_pdf)
+    fp_service.fingerprint_pdf("STU-LOC-1", "DOC-LOC-TEST", src_pdf, out_pdf, enable_stage3=True)
 
     # 2. Inspect structurally with read-only inspector
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", False)
     inspector = PdfStructuralInspector()
     report = inspector.inspect_pdf(out_pdf)
 
@@ -350,13 +348,8 @@ def test_full_inspection_api_endpoint_response(test_env, monkeypatch):
     out_pdf = str(tmp_path / "api_out.pdf")
 
     # Generate stego PDF
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
     fp_service = FingerprintService(repo=repo, master_key=master_key)
-    fp_service.fingerprint_pdf("STU-LOC-1", "DOC-API-TEST", src_pdf, out_pdf)
-
-    # Disable generation globally
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", False)
-    assert config.ENABLE_STEGO_CARRIER is False
+    fp_service.fingerprint_pdf("STU-LOC-1", "DOC-API-TEST", src_pdf, out_pdf, enable_stage3=True)
 
     client = TestClient(app)
     with open(out_pdf, "rb") as f:
@@ -432,10 +425,8 @@ def test_structural_decoding_remains_distinct_from_hmac_authentication(test_env,
     out_pdf = str(tmp_path / "distinct_stego.pdf")
 
     # Fingerprint with genuine master key
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
     fp_service = FingerprintService(repo=repo, master_key=master_key)
-    fp_service.fingerprint_pdf("STU-LOC-1", "DOC-DISTINCT-TEST", src_pdf, out_pdf)
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", False)
+    fp_service.fingerprint_pdf("STU-LOC-1", "DOC-DISTINCT-TEST", src_pdf, out_pdf, enable_stage3=True)
 
     # 1. Static inspection: must be STRUCTURALLY_DECODED, must NEVER be VALID
     inspector = PdfStructuralInspector()
@@ -548,10 +539,8 @@ def test_multipage_carrier_locations_beyond_page_zero(test_env, monkeypatch):
     create_sample_pdf(src_pdf, pages=8, lines_per_page=15)
     out_pdf = str(tmp_path / "multi_out.pdf")
 
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", True)
     fp_service = FingerprintService(repo=repo, master_key=master_key)
-    fp_service.fingerprint_pdf("STU-LOC-1", "DOC-MULTI-TEST", src_pdf, out_pdf)
-    monkeypatch.setattr(config, "ENABLE_STEGO_CARRIER", False)
+    fp_service.fingerprint_pdf("STU-LOC-1", "DOC-MULTI-TEST", src_pdf, out_pdf, enable_stage3=True)
 
     inspector = PdfStructuralInspector()
     report = inspector.inspect_pdf(out_pdf)

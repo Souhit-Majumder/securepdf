@@ -86,7 +86,9 @@ def init_db(db_path: Optional[Union[str, Path]] = None):
             total_recipients INTEGER NOT NULL,
             expiry_duration_seconds INTEGER NOT NULL DEFAULT 120,
             status TEXT NOT NULL DEFAULT 'PENDING',
-            enable_stego INTEGER NOT NULL DEFAULT 0,
+            enable_stage1 INTEGER NOT NULL DEFAULT 1,
+            enable_stage2 INTEGER NOT NULL DEFAULT 1,
+            enable_stage3 INTEGER NOT NULL DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
             FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE
@@ -95,11 +97,17 @@ def init_db(db_path: Optional[Union[str, Path]] = None):
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_distribution_batches_user ON distribution_batches (user_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_distribution_batches_doc ON distribution_batches (document_id)')
 
-    # Safe idempotent column migration for distribution_batches enable_stego
+    # Safe idempotent column migrations for distribution_batches stage selection
     cursor.execute("PRAGMA table_info(distribution_batches)")
     batch_cols = [row["name"] for row in cursor.fetchall()]
-    if "enable_stego" not in batch_cols:
-        cursor.execute("ALTER TABLE distribution_batches ADD COLUMN enable_stego INTEGER NOT NULL DEFAULT 0")
+    if "enable_stage1" not in batch_cols:
+        cursor.execute("ALTER TABLE distribution_batches ADD COLUMN enable_stage1 INTEGER NOT NULL DEFAULT 1")
+    if "enable_stage2" not in batch_cols:
+        cursor.execute("ALTER TABLE distribution_batches ADD COLUMN enable_stage2 INTEGER NOT NULL DEFAULT 1")
+    if "enable_stage3" not in batch_cols:
+        cursor.execute("ALTER TABLE distribution_batches ADD COLUMN enable_stage3 INTEGER NOT NULL DEFAULT 0")
+        if "enable_stego" in batch_cols:
+            cursor.execute("UPDATE distribution_batches SET enable_stage3 = 1 WHERE enable_stego = 1")
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS distribution_batch_recipients (

@@ -39,7 +39,6 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   pdfFile,
   activeLayer,
   visibleLayers,
-  onSelectLayer,
   zoomLevel,
   cameraResetTrigger,
   spatialTool = "orbit",
@@ -47,7 +46,6 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   onTotalPagesChange,
   selectedAnnotationXref = null,
   selectedKerningLocationIndex = null,
-  onSelectKerningLocation,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -557,11 +555,6 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     isDragging.current = false;
   };
 
-  // Carrier data references
-  const l1Carrier = report.carriers.find((c) => c.carrier_name === "Layer 1 (Catalog)");
-  const l3Carrier = report.carriers.find((c) => c.carrier_name === "Layer 3 (Stego Kerning)");
-  const l3Sample = l3Carrier?.content_stream_locations[0] || null;
-
   return (
     <div
       className={`relative w-full h-full overflow-hidden select-none ${
@@ -574,125 +567,6 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     >
       {/* Three.js Canvas Container */}
       <div ref={containerRef} className="w-full h-full" />
-
-      {/* SVG Leader Lines for Spatial Grounding (Clean, non-decorative, restrained) */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-        {/* Layer 1 Leader line from Catalog Capsule to Document Header */}
-        {visibleLayers.catalog && (
-          <g className="transition-opacity duration-300">
-            <line
-              x1="30%"
-              y1="22%"
-              x2="41%"
-              y2="25%"
-              stroke="rgba(2, 132, 199, 0.45)"
-              strokeWidth="1.2"
-              strokeDasharray="3 3"
-            />
-            <circle cx="41%" cy="25%" r="2.5" fill="#0284c7" />
-            <circle cx="41%" cy="25%" r="5" fill="none" stroke="rgba(2, 132, 199, 0.25)" strokeWidth="1" />
-          </g>
-        )}
-
-        {/* Layer 3 Leader line from Optical Lens to Word Gap (Only if evidence exists) */}
-        {visibleLayers.textStream && (
-          <g className="transition-opacity duration-300">
-            <line
-              x1="29%"
-              y1="66%"
-              x2="42%"
-              y2="54%"
-              stroke={l3Sample ? "rgba(2, 132, 199, 0.45)" : "rgba(148, 163, 184, 0.35)"}
-              strokeWidth="1.2"
-              strokeDasharray="3 3"
-            />
-            <circle
-              cx="42%"
-              cy="54%"
-              r="2.5"
-              fill={l3Sample ? "#0284c7" : "#94a3b8"}
-            />
-          </g>
-        )}
-      </svg>
-
-      {/* ---------------- Layer 1: Floating Suspended Catalog Capsule (Matches Reference Image) ---------------- */}
-      {visibleLayers.catalog && (
-        <div
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelectLayer(0);
-          }}
-          className={`absolute top-[16%] left-[24%] z-20 cursor-pointer group transition-all duration-200 ${
-            activeLayer === 0 ? "scale-[1.02]" : "hover:scale-[1.01]"
-          }`}
-        >
-          <div
-            className={`px-4 py-2 rounded-full transition-all duration-200 shadow-md ${
-              activeLayer === 0 ? "glass-dock-item-active" : "glass-catalog-node"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-[11.5px] font-medium text-slate-800 tracking-tight">
-                Capsule for <span className="font-mono font-semibold text-sky-900">/SPDFPayload</span>
-              </span>
-              {l1Carrier?.status === "STRUCTURALLY_DECODED" && (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ---------------- Layer 3: True Optical Glass Inspection Lens (Matches Reference Image) ---------------- */}
-      {visibleLayers.textStream && (
-        <div
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelectLayer(2);
-            if (l3Sample && onSelectKerningLocation) {
-              onSelectKerningLocation(l3Sample.location_index);
-            }
-          }}
-          className={`absolute bottom-[18%] left-[28%] z-20 cursor-pointer group transition-all duration-200 ${
-            activeLayer === 2 ? "scale-[1.02]" : "hover:scale-[1.01]"
-          }`}
-        >
-          {/* Circular Optical Glass Lens */}
-          <div className="relative w-36 h-36 rounded-full optical-glass-lens p-1 flex items-center justify-center">
-            {/* Delicate inner concentric measurement ring */}
-            <div className="absolute inset-2.5 rounded-full border border-sky-500/20 pointer-events-none" />
-
-            {/* Specular reflection highlight crescent (Matching Reference Image) */}
-            <div className="absolute top-2 left-5 right-5 h-7 rounded-full bg-gradient-to-b from-white/95 via-white/35 to-transparent pointer-events-none" />
-
-            {/* Central Precision Crosshair Caliper (Matching Reference Image) */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-10 h-10 relative flex items-center justify-center">
-                <div className="absolute w-full h-[1.2px] bg-slate-600/60" />
-                <div className="absolute h-full w-[1.2px] bg-slate-600/60" />
-              </div>
-            </div>
-
-            {/* Carrier Telemetry Overlay */}
-            <div className="absolute bottom-2.5 inset-x-2 text-center pointer-events-none">
-              {l3Sample ? (
-                <div className="text-[9.5px] font-mono font-bold text-sky-950 bg-white/70 backdrop-blur-xs rounded-full px-2 py-0.5 inline-block shadow-xs border border-white/80">
-                  Carrier #{l3Sample.location_index + 1} • {l3Sample.localization_status}
-                </div>
-              ) : l3Carrier?.status === "OBSERVED_SYNTAX" ? (
-                <div className="text-[9px] font-medium text-amber-950 bg-amber-500/15 backdrop-blur-xs rounded-full px-2 py-0.5 inline-block border border-amber-400/30">
-                  Typesetting TJ
-                </div>
-              ) : (
-                <div className="text-[9px] font-medium text-slate-700 bg-white/60 backdrop-blur-xs rounded-full px-2 py-0.5 inline-block border border-white/80">
-                  No Stego Preamble
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

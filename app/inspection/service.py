@@ -160,7 +160,9 @@ class InspectionService:
         student_uid: str,
         doc_uid: str,
         auth_ctx: Optional[AuthorizationContext] = None,
-        enable_stego: Optional[bool] = None,
+        enable_stage1: bool = True,
+        enable_stage2: bool = True,
+        enable_stage3: bool = False,
     ) -> Tuple[str, EvidenceReport]:
         """
         Simulates fingerprint issuance ephemerally without persisting to the database.
@@ -193,7 +195,9 @@ class InspectionService:
                 document_uid=doc_uid,
                 nonce=nonce,
                 fingerprint=fingerprint_hex,
-                enable_stego=enable_stego,
+                enable_stage1=enable_stage1,
+                enable_stage2=enable_stage2,
+                enable_stage3=enable_stage3,
                 student_uid=student_uid,
                 master_key=self.master_key,
                 collector=collector,

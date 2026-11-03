@@ -1,5 +1,5 @@
 from typing import List, Optional, Literal
-from pydantic import BaseModel, constr, Field, field_validator
+from pydantic import BaseModel, constr, Field, field_validator, model_validator
 
 class RecipientItem(BaseModel):
     name: constr(min_length=1, max_length=255, strip_whitespace=True)
@@ -12,9 +12,17 @@ class DistributionBatchCreateRequest(BaseModel):
         le=2592000,
         description="Validity duration in seconds (default 120s / 2min; min 30s, max 30 days)"
     )
-    enable_stego: bool = Field(
+    enable_stage1: bool = Field(
+        default=True,
+        description="Enable Stage 1 (Document Catalog Carrier)"
+    )
+    enable_stage2: bool = Field(
+        default=True,
+        description="Enable Stage 2 (Redundant Annotation Carriers)"
+    )
+    enable_stage3: bool = Field(
         default=False,
-        description="Explicit opt-in for Layer 3 steganographic embedding"
+        description="Enable Stage 3 (Passive Steganographic Kerning Carrier)"
     )
     recipients: List[RecipientItem] = Field(
         ...,
@@ -32,6 +40,12 @@ class DistributionBatchCreateRequest(BaseModel):
                 raise ValueError(f"Duplicate recipient identifier in batch: {r.student_uid}")
             seen.add(r.student_uid)
         return v
+
+    @model_validator(mode="after")
+    def validate_at_least_one_stage(self):
+        if not (self.enable_stage1 or self.enable_stage2 or self.enable_stage3):
+            raise ValueError("At least one security stage must be selected (Stage 1, Stage 2, or Stage 3).")
+        return self
 
 class BatchRecipientResponse(BaseModel):
     recipient_name: str
@@ -51,6 +65,8 @@ class DistributionBatchResponse(BaseModel):
     expiry_duration_seconds: int
     status: str
     created_at: str
-    enable_stego: bool = False
+    enable_stage1: bool = True
+    enable_stage2: bool = True
+    enable_stage3: bool = False
     stego_status: Literal["PENDING", "SKIPPED", "SUCCESS", "FAILED", "PARTIAL"] = "PENDING"
     recipients: List[BatchRecipientResponse]

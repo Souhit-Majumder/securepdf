@@ -33,7 +33,6 @@ class Config:
     """
     def __init__(self):
         self.BASE_DIR = Path(__file__).resolve().parent.parent
-        self._enable_stego_carrier = None
 
     @property
     def DATA_DIR(self) -> Path:
@@ -70,20 +69,6 @@ class Config:
     @property
     def DATASET_DIR(self) -> Path:
         return Path(os.getenv("SECUREPDF_DATASET_DIR", str(self.ML_DIR / "dataset")))
-
-    @property
-    def ENABLE_STEGO_CARRIER(self) -> bool:
-        if self._enable_stego_carrier is not None:
-            return self._enable_stego_carrier
-        return os.getenv("SECUREPDF_ENABLE_STEGO_CARRIER", "false").lower() in ("true", "1", "yes")
-
-    @ENABLE_STEGO_CARRIER.setter
-    def ENABLE_STEGO_CARRIER(self, value: bool) -> None:
-        self._enable_stego_carrier = bool(value)
-
-    @ENABLE_STEGO_CARRIER.deleter
-    def ENABLE_STEGO_CARRIER(self) -> None:
-        self._enable_stego_carrier = None
 
     @property
     def STEGO_EXTRACT_TIMEOUT(self) -> float:

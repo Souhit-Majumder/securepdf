@@ -18,6 +18,15 @@ export function getSafeRedirect(redirectParam: string | null | undefined): strin
     !trimmed.includes("\n") &&
     !trimmed.includes("\r")
   ) {
+    // Prevent redirect loops back to authentication pages
+    if (
+      trimmed === "/login" ||
+      trimmed === "/register" ||
+      trimmed.startsWith("/login?") ||
+      trimmed.startsWith("/register?")
+    ) {
+      return "/";
+    }
     return trimmed;
   }
   return "/";

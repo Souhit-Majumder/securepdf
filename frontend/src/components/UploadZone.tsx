@@ -42,7 +42,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[500px] w-full max-w-xl mx-auto p-6">
+    <div className="w-full max-w-xl mx-auto flex flex-col items-center justify-center relative z-10 animate-in fade-in zoom-in-95 duration-200">
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -51,10 +51,10 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        className={`w-full relative cursor-pointer group rounded-2xl p-10 flex flex-col items-center justify-center text-center transition-all duration-300 ${
+        className={`w-full relative cursor-pointer group rounded-3xl p-10 flex flex-col items-center justify-center text-center transition-all duration-300 glass-top-island border border-white/95 backdrop-blur-2xl shadow-2xl ${
           isDragOver
-            ? "glass-dock scale-[1.01] border-sky-400 shadow-xl"
-            : "glass-dock hover:border-slate-300 shadow-lg"
+            ? "scale-[1.01] ring-2 ring-sky-400 shadow-sky-500/10"
+            : "hover:border-white hover:shadow-3xl"
         }`}
       >
         <input

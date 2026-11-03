@@ -73,7 +73,7 @@ def test_mandatory_byte_identity_l1_l2(integration_env):
         document_uid=fixed_doc_uid,
         nonce=fixed_nonce,
         fingerprint=fixed_fp,
-        enable_stego=False,
+        enable_stage3=False,
         collector=None,
     )
     out_uninstrumented = str(tmp_path / "out_uninstrumented.pdf")
@@ -87,7 +87,7 @@ def test_mandatory_byte_identity_l1_l2(integration_env):
         document_uid=fixed_doc_uid,
         nonce=fixed_nonce,
         fingerprint=fixed_fp,
-        enable_stego=False,
+        enable_stage3=False,
         collector=collector,
     )
     out_instrumented = str(tmp_path / "out_instrumented.pdf")
@@ -125,7 +125,7 @@ def test_mandatory_byte_identity_l3_stego(integration_env):
         document_uid=fixed_doc_uid,
         nonce=fixed_nonce,
         fingerprint=fixed_fp,
-        enable_stego=True,
+        enable_stage3=True,
         student_uid=fixed_student_uid,
         master_key=master_key,
         collector=None,
@@ -141,7 +141,7 @@ def test_mandatory_byte_identity_l3_stego(integration_env):
         document_uid=fixed_doc_uid,
         nonce=fixed_nonce,
         fingerprint=fixed_fp,
-        enable_stego=True,
+        enable_stage3=True,
         student_uid=fixed_student_uid,
         master_key=master_key,
         collector=collector,
@@ -181,7 +181,7 @@ def test_simulation_isolation_db_immutability(integration_env):
         student_uid="STU-ALICE",
         doc_uid="DOC-SIM-1",
         auth_ctx=auth,
-        enable_stego=False,
+        enable_stage3=False,
     )
 
     assert fp_hex is not None
@@ -216,7 +216,7 @@ def test_simulation_source_pdf_immutability(integration_env):
         pdf_path=src_pdf,
         student_uid="STU-ALICE",
         doc_uid="DOC-SIM-IMMUT",
-        enable_stego=False,
+        enable_stage3=False,
     )
 
     hash_after = hashlib.sha256(Path(src_pdf).read_bytes()).hexdigest()

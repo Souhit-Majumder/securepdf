@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Shield, Lock, Mail, User as UserIcon, AlertCircle, Loader2, ArrowRight, CheckCircle2 } from "lucide-react";
 import { UserDTO } from "../types/auth";
 import { getSafeRedirect } from "../utils/safeRedirect";
+import { GradientASCII } from "../components/GradientASCII";
 
 interface RegisterPageProps {
   currentUser: UserDTO | null;
@@ -20,11 +21,28 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // If already authenticated
+  // Auto-redirect if already authenticated
+  React.useEffect(() => {
+    if (currentUser) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectTarget = getSafeRedirect(searchParams.get("redirect"));
+      onNavigate(redirectTarget);
+    }
+  }, [currentUser, onNavigate]);
+
+  // If already authenticated (fallback while redirecting)
   if (currentUser) {
     return (
       <div className="relative w-screen h-screen flex items-center justify-center spatial-bg p-4 overflow-hidden">
-        <div className="w-full max-w-md rounded-3xl glass-top-island p-8 border border-white/95 shadow-2xl text-center space-y-5 animate-in fade-in zoom-in-95 duration-200">
+        {/* Background Gradient ASCII Animation */}
+        <GradientASCII
+          colors={["#090d16", "#1e3a8a", "#0284c7", "#38bdf8", "#f8fafc"]}
+          shape="horizon"
+          characters=" =+xX0S8#@"
+          cellSize={18}
+          density={0.75}
+        />
+        <div className="w-full max-w-md rounded-3xl glass-top-island p-8 border border-white/95 shadow-2xl text-center space-y-5 animate-in fade-in zoom-in-95 duration-200 relative z-10 backdrop-blur-2xl">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/15 border border-emerald-400/40 flex items-center justify-center text-emerald-600 shadow-sm">
             <CheckCircle2 className="w-7 h-7" />
           </div>
@@ -82,7 +100,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
         throw new Error(data.detail || "Registration failed. Please try a different email or username.");
       }
 
-      onRegisterSuccess(data.user);
+      const user: UserDTO = data.user || data;
+      onRegisterSuccess(user);
 
       // Return to safe redirect target or default to workspace
       const searchParams = new URLSearchParams(window.location.search);
@@ -97,8 +116,16 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
 
   return (
     <div className="relative w-screen h-screen flex items-center justify-center spatial-bg p-4 overflow-hidden">
+      {/* Background Gradient ASCII Animation */}
+      <GradientASCII
+        colors={["#090d16", "#1e3a8a", "#0284c7", "#38bdf8", "#f8fafc"]}
+        shape="horizon"
+        characters=" =+xX0S8#@"
+        cellSize={18}
+        density={0.75}
+      />
       {/* Daylight Liquid-Glass Center Card */}
-      <div className="w-full max-w-md rounded-3xl glass-top-island p-8 border border-white/95 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-md rounded-3xl glass-top-island p-8 border border-white/95 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-200 relative z-10 backdrop-blur-2xl">
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <div className="w-12 h-12 mx-auto rounded-2xl bg-sky-500/15 border border-sky-400/35 flex items-center justify-center text-sky-600 shadow-xs">

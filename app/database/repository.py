@@ -329,19 +329,52 @@ class Repository:
         document_id: int,
         expiry_duration_seconds: int,
         recipients_data: List[dict],
-        enable_stego: bool = False
+        enable_stage1: bool = True,
+        enable_stage2: bool = True,
+        enable_stage3: bool = False,
     ) -> DistributionBatch:
         conn = self._get_conn()
         cursor = conn.cursor()
         try:
-            cursor.execute(
-                """
-                INSERT INTO distribution_batches 
-                (batch_uid, user_id, document_id, total_recipients, expiry_duration_seconds, status, enable_stego)
-                VALUES (?, ?, ?, ?, ?, 'PENDING', ?)
-                """,
-                (batch_uid, user_id, document_id, len(recipients_data), expiry_duration_seconds, 1 if enable_stego else 0)
-            )
+            cursor.execute("PRAGMA table_info(distribution_batches)")
+            cols = [c["name"] for c in cursor.fetchall()]
+            if "enable_stego" in cols:
+                cursor.execute(
+                    """
+                    INSERT INTO distribution_batches 
+                    (batch_uid, user_id, document_id, total_recipients, expiry_duration_seconds, status, enable_stage1, enable_stage2, enable_stage3, enable_stego)
+                    VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?)
+                    """,
+                    (
+                        batch_uid,
+                        user_id,
+                        document_id,
+                        len(recipients_data),
+                        expiry_duration_seconds,
+                        1 if enable_stage1 else 0,
+                        1 if enable_stage2 else 0,
+                        1 if enable_stage3 else 0,
+                        1 if enable_stage3 else 0,
+                    )
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO distribution_batches 
+                    (batch_uid, user_id, document_id, total_recipients, expiry_duration_seconds, status, enable_stage1, enable_stage2, enable_stage3)
+                    VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?)
+                    """,
+                    (
+                        batch_uid,
+                        user_id,
+                        document_id,
+                        len(recipients_data),
+                        expiry_duration_seconds,
+                        1 if enable_stage1 else 0,
+                        1 if enable_stage2 else 0,
+                        1 if enable_stage3 else 0,
+                    )
+                )
             batch_id = cursor.lastrowid
             
             for r in recipients_data:
@@ -575,7 +608,8 @@ class Repository:
                 b.id as b_id, b.batch_uid as b_batch_uid, b.user_id as b_user_id,
                 b.document_id as b_document_id, b.total_recipients as b_total_recipients,
                 b.expiry_duration_seconds as b_expiry_duration_seconds, b.status as b_status,
-                b.enable_stego as b_enable_stego, b.created_at as b_created_at,
+                b.enable_stage1 as b_enable_stage1, b.enable_stage2 as b_enable_stage2, b.enable_stage3 as b_enable_stage3,
+                b.created_at as b_created_at,
                 d.id as d_id, d.document_uid as d_document_uid, d.original_filename as d_original_filename,
                 d.user_id as d_user_id, d.created_at as d_created_at
             FROM distribution_batch_recipients r
@@ -613,7 +647,9 @@ class Repository:
             expiry_duration_seconds=row["b_expiry_duration_seconds"],
             status=row["b_status"],
             created_at=row["b_created_at"],
-            enable_stego=bool(row["b_enable_stego"]) if "b_enable_stego" in row.keys() else False,
+            enable_stage1=bool(row["b_enable_stage1"]) if "b_enable_stage1" in row.keys() else True,
+            enable_stage2=bool(row["b_enable_stage2"]) if "b_enable_stage2" in row.keys() else True,
+            enable_stage3=bool(row["b_enable_stage3"]) if "b_enable_stage3" in row.keys() else False,
         )
         doc = Document(
             id=row["d_id"],

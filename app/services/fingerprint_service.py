@@ -42,7 +42,16 @@ class FingerprintService:
         self.repo = repo or Repository()
         self.master_key = master_key or get_or_create_master_key(key_path)
 
-    def fingerprint_pdf(self, student_uid: str, document_uid: str, input_pdf_path: str, output_pdf_path: str) -> str:
+    def fingerprint_pdf(
+        self,
+        student_uid: str,
+        document_uid: str,
+        input_pdf_path: str,
+        output_pdf_path: str,
+        enable_stage1: bool = True,
+        enable_stage2: bool = True,
+        enable_stage3: bool = False,
+    ) -> str:
         """
         Orchestrates reading a PDF, generating a fingerprint, embedding it, and saving.
         """
@@ -74,6 +83,9 @@ class FingerprintService:
             document_uid,
             nonce,
             fingerprint_hex,
+            enable_stage1=enable_stage1,
+            enable_stage2=enable_stage2,
+            enable_stage3=enable_stage3,
             student_uid=student_uid,
             master_key=self.master_key,
         )
@@ -101,16 +113,20 @@ class FingerprintService:
         fingerprint_hex: str,
         input_pdf_path: str,
         output_pdf_path: str,
-        enable_stego: Optional[bool] = None,
+        enable_stage1: bool = True,
+        enable_stage2: bool = True,
+        enable_stage3: bool = False,
     ) -> EmbeddingStageResult:
-        """Embeds watermarks and saves to output path, returning stage result."""
+        """Embeds watermarks according to selected stages and saves to output path, returning stage result."""
         doc = open_pdf(input_pdf_path)
         stage_result = embed_payload(
             doc,
             document_uid,
             nonce,
             fingerprint_hex,
-            enable_stego=enable_stego,
+            enable_stage1=enable_stage1,
+            enable_stage2=enable_stage2,
+            enable_stage3=enable_stage3,
             student_uid=student_uid,
             master_key=self.master_key,
         )
@@ -125,13 +141,20 @@ class FingerprintService:
         recipient_uid: str,
         nonce: str,
         fingerprint_hex: str,
-        stego_expected: bool = False,
+        enable_stage1: bool = True,
+        enable_stage2: bool = True,
+        enable_stage3: bool = False,
+        stego_expected: Optional[bool] = None,
         stego_skipped_capacity: bool = False,
     ) -> PostVerificationResult:
         """
         Independently verifies the saved PDF on disk against expected carriers.
-        Reuses authoritative Layer 1, 2, and 3 extraction and verification routines.
+        Verifies every selected stage and requires successful verification of all selected stages.
+        Does not fail simply because an unselected stage is absent.
         """
+        if stego_expected is not None:
+            enable_stage3 = bool(stego_expected)
+
         path_obj = Path(pdf_path)
         if not path_obj.exists() or path_obj.stat().st_size == 0:
             return PostVerificationResult(
@@ -157,7 +180,7 @@ class FingerprintService:
             if l1_payload == expected_l1:
                 l1_verified = True
                 auth_layers.append("Layer 1")
-            else:
+            elif enable_stage1:
                 err = "Layer 1 catalog payload missing or mismatched"
 
             # 2. Layer 2 Check
@@ -174,14 +197,14 @@ class FingerprintService:
             if l2_valid_matches > 0:
                 l2_verified = True
                 auth_layers.append("Layer 2")
-            else:
+            elif enable_stage2:
                 if not err:
                     err = "Layer 2 redundant annotations missing or mismatched"
 
             # 3. Layer 3 Check
             if stego_skipped_capacity:
                 l3_status = "NOT_ATTEMPTED_CAPACITY"
-            elif not stego_expected:
+            elif not enable_stage3:
                 l3_status = "NOT_ATTEMPTED_DISABLED"
             else:
                 all_bits = []
@@ -229,12 +252,12 @@ class FingerprintService:
                 error=f"Exception during verification: {str(e)}",
             )
 
-        if not (l1_verified and l2_verified):
-            is_valid = False
-        elif stego_expected:
-            is_valid = (l3_status == "VERIFIED")
-        else:
-            is_valid = True
+        at_least_one = enable_stage1 or enable_stage2 or enable_stage3
+        s1_ok = (not enable_stage1) or l1_verified
+        s2_ok = (not enable_stage2) or l2_verified
+        s3_ok = (not enable_stage3) or (l3_status == "VERIFIED" or (stego_skipped_capacity and l3_status == "NOT_ATTEMPTED_CAPACITY"))
+
+        is_valid = at_least_one and s1_ok and s2_ok and s3_ok
 
         return PostVerificationResult(
             is_valid=is_valid,

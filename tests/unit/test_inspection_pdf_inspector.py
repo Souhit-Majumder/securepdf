@@ -114,7 +114,7 @@ def test_layer1_and_layer2_structural_detection(sample_pdf_path, tmp_path):
     nonce = "1234567890abcdef1234567890abcdef"
     fp = "fedcba0987654321fedcba0987654321"
 
-    embed_payload(doc, "DOC-L1-L2", nonce, fp, enable_stego=False)
+    embed_payload(doc, "DOC-L1-L2", nonce, fp, enable_stage3=False)
     out_pdf = str(tmp_path / "l1_l2.pdf")
     save_pdf(doc, out_pdf)
     doc.close()
@@ -153,7 +153,7 @@ def test_layer3_structural_decoding_and_no_authenticated_label(sample_pdf_path, 
         "DOC-L3-FULL",
         nonce,
         fp,
-        enable_stego=True,
+        enable_stage3=True,
         student_uid="STU-BOB-42",
         master_key=master_key,
     )

@@ -439,24 +439,40 @@ describe("Phase 3 Temporary Download Links and Frontend Countdown", () => {
   });
 });
 
-describe("Per-Distribution Layer 3 Steganography Opt-In & Status Invariants", () => {
-  it("defaults enable_stego opt-in to false", () => {
-    const defaultOptIn = false;
-    expect(defaultOptIn).toBe(false);
+describe("Per-Distribution Selectable Stages & Status Invariants", () => {
+  it("defaults stages to Stage 1 and Stage 2 enabled, Stage 3 disabled", () => {
+    const defaultStage1 = true;
+    const defaultStage2 = true;
+    const defaultStage3 = false;
+    expect(defaultStage1).toBe(true);
+    expect(defaultStage2).toBe(true);
+    expect(defaultStage3).toBe(false);
   });
 
-  it("serializes enable_stego in batch creation payload", () => {
-    const buildPayload = (duration: number, recipients: any[], enableStego: boolean) => ({
+  it("serializes enable_stage1, enable_stage2, enable_stage3 in batch creation payload", () => {
+    const buildPayload = (
+      duration: number,
+      recipients: any[],
+      enableStage1: boolean,
+      enableStage2: boolean,
+      enableStage3: boolean
+    ) => ({
       expiry_duration_seconds: duration,
-      enable_stego: enableStego,
+      enable_stage1: enableStage1,
+      enable_stage2: enableStage2,
+      enable_stage3: enableStage3,
       recipients,
     });
 
-    const payloadDefault = buildPayload(120, [{ name: "Alice", student_uid: "A1" }], false);
-    expect(payloadDefault.enable_stego).toBe(false);
+    const payloadDefault = buildPayload(120, [{ name: "Alice", student_uid: "A1" }], true, true, false);
+    expect(payloadDefault.enable_stage1).toBe(true);
+    expect(payloadDefault.enable_stage2).toBe(true);
+    expect(payloadDefault.enable_stage3).toBe(false);
 
-    const payloadOptIn = buildPayload(120, [{ name: "Alice", student_uid: "A1" }], true);
-    expect(payloadOptIn.enable_stego).toBe(true);
+    const payloadAll = buildPayload(120, [{ name: "Alice", student_uid: "A1" }], true, true, true);
+    expect(payloadAll.enable_stage1).toBe(true);
+    expect(payloadAll.enable_stage2).toBe(true);
+    expect(payloadAll.enable_stage3).toBe(true);
   });
 
   it("correctly aggregates batch-level stego_status according to specification", () => {
